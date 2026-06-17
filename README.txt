@@ -1,72 +1,80 @@
-SMARTQUALIHOME - Setup Guide
+# Qualihome: Client Pre-Qualification System
 
-1) Prerequisites
-- Python 3.11+ (3.12/3.13 supported)
-- pip
-- MySQL 8+ (optional; SQLite is the default)
+> A web-based management and tracking system for a local real estate firm, using the Similarity-Augmented C5.0 Algorithm to pre-qualify clients based on structured data inputs.
 
-2) Create and activate a virtual environment (Windows PowerShell)
-  py -m venv .venv
-  .\.venv\Scripts\Activate.ps1
+![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-000000?style=flat&logo=flask&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat&logo=mysql&logoColor=white)
+![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white)
+![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat&logo=css3&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat&logo=javascript&logoColor=black)
 
-3) Install dependencies
-  pip install -r requirements.txt
+---
 
-4) Configure environment
-Create a .env file in the project root.
+## Overview
 
-Minimum example:
-  SECRET_KEY=change-this-in-production
-  DB_USE_SQLITE=true
+Qualihome serves as a centralized hub for managing client pre-qualification data for a real estate firm. The system uses the Similarity-Augmented C5.0 Algorithm to evaluate and classify client eligibility, while maintaining secure role-based access for administrators, agents, and clients to ensure accurate tracking, status updates, and reporting.
 
-Optional MySQL configuration:
-  DB_USE_SQLITE=false
-  DB_HOST=localhost
-  DB_PORT=3306
-  DB_USER=root
-  DB_PASSWORD=your_password
-  DB_NAME=smartqualihome
+---
 
-Optional SMTP (forgot password flow):
-  MAIL_SERVER=smtp.yourprovider.com
-  MAIL_PORT=587
-  MAIL_USERNAME=your_email@example.com
-  MAIL_PASSWORD=your_app_password
-  MAIL_USE_TLS=true
-  MAIL_USE_SSL=false
-  MAIL_FROM=no-reply@yourdomain.com
+## Key Features
 
-5) Initialize database
-- SQLite mode: created automatically on app startup.
-- MySQL mode:
-  a) Run migrations/schema.sql
-  b) Start app (runtime applies safe incremental schema checks)
+- **Similarity-Augmented C5.0 Classification** — Machine learning engine that pre-qualifies clients based on structured data inputs and similarity scoring.
+- **Role-Based Access Control** — Secure authentication distinguishing between admin, agent, and client user levels to protect sensitive data.
+- **Client Portal** — Specialized interface for clients to track their pre-qualification status.
+- **Agent Portal** — Dedicated interface for agents to manage client records and tasks.
+- **Administrative Dashboard** — Monitors system performance, user activity, and report generation.
+- **Geographic Data Standardization** — Uses PSGC (Philippine Standard Geographic Code) integration for standardized location data.
 
-6) Run the app
-  py run.py
+---
 
-7) Open in browser
-  http://127.0.0.1:5000
+## Technical Implementation
 
-Default seeded accounts (created only when missing)
-- Admin
-  Email: admin@smartqualihome.com
-  Password: Admin@2026!
-- Agent
-  Email: agent@smartqualihome.com
-  Password: Agent@2026!
-- Client
-  Email: client@smartqualihome.com
-  Password: Client@2026!
+| Layer | Technology |
+|---|---|
+| Backend | Python (Flask) |
+| ML Engine | Similarity-Augmented C5.0 Algorithm (`c50_engine.py`) |
+| Database | MySQL |
+| Frontend | HTML5, CSS3, JavaScript |
+| Geographic Data | PSGC (`psgc.py`) |
 
-Recent dashboard notes
-- Admin notifications are merged and sorted by latest timestamp.
-- Admin Activity Log includes full detail request event filtering.
-- Client Home includes a Qualified Properties for You section.
-- Client Browse includes a Qualified Only filter.
-- Client Profile read-only blocks now retain left icon alignment.
+### Architecture
 
-Notes
-- Uploaded files: instance/uploads
-- SQLite database: instance/smartqualihome.db
-- Never commit real credentials in .env
+- `app/auth/` — User login, registration, and session management.
+- `app/client/` — Client-side operations, pre-qualification tracking, and status updates.
+- `app/main/` — Core application routes and utility scripts including geographic data processing.
+- `app/ml/` — Machine learning integration including the C5.0 classification engine.
+- `app/static/css/` — Separate dashboard stylesheets for admin, agent, and client views.
+- `app/static/img/` — Visual assets including award badges and icons.
+
+---
+
+## Project Structure
+
+```
+/
+├── app/
+│   ├── auth/              # Authentication routes and forms
+│   ├── client/            # Client management routes and forms
+│   ├── main/              # Core routes, utilities, and psgc.py
+│   ├── ml/                # C5.0 ML engine and classification logic
+│   └── static/
+│       ├── css/           # Admin, agent, and client dashboard styles
+│       └── img/           # Icons, badges, and visual assets
+└── app/config.py          # Environment and database configuration
+```
+
+---
+
+## How to Get Started
+
+1. **Dependencies** — Set up a Python environment and install required packages via `pip install -r requirements.txt`.
+2. **Configuration** — Update `app/config.py` with your local database credentials and environment variables.
+3. **Database Initialization** — Initialize the database schema to support authentication, client data, and ML logging modules.
+4. **Run** — Start the Flask development server by executing the application entry point.
+
+---
+
+## Credits
+
+Developed by **Juan Carlos Garcia** as a commissioned system for a local real estate firm.
