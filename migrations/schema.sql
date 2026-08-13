@@ -1,14 +1,20 @@
 -- ============================================================
--- SMARTQUALIHOME - MySQL Schema (idempotent)
--- Use this for first-time setup or migration alignment.
--- In SQLite development mode, Flask creates tables automatically.
+-- SMARTQUALIHOME - MySQL Schema (single source of truth)
+-- Fully consolidated: every column from prior migrations is now
+-- included directly in its CREATE TABLE statement below.
+-- Safe to run top-to-bottom on a brand-new empty database
+-- (Aiven, PlanetScale, fresh XAMPP install, etc).
 -- ============================================================
 
-CREATE DATABASE IF NOT EXISTS smartqualihome
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
-
-USE smartqualihome;
+-- NOTE: CREATE DATABASE / USE intentionally omitted below.
+-- Aiven (and most managed hosts) provide a fixed database name
+-- (e.g. defaultdb) and free-tier accounts often lack permission
+-- to CREATE DATABASE. Connect directly to your target database
+-- (mysqlsh --schema=defaultdb ...) and this script will build all
+-- tables inside it. For local XAMPP/MariaDB use, uncomment the two
+-- lines below first.
+-- CREATE DATABASE IF NOT EXISTS smartqualihome CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- USE smartqualihome;
 
 -- Users
 CREATE TABLE IF NOT EXISTS users (
@@ -224,12 +230,6 @@ CREATE TABLE IF NOT EXISTS properties (
     INDEX idx_properties_unit_id (unit_id)
 ) ENGINE=InnoDB;
 
--- Alignment patch for existing databases where properties table already existed
--- before barangay fields were introduced in the ORM model.
-ALTER TABLE properties
-    ADD COLUMN IF NOT EXISTS barangay_code VARCHAR(15) NULL AFTER citymun_name,
-    ADD COLUMN IF NOT EXISTS barangay_name VARCHAR(120) NULL AFTER barangay_code;
-
 -- Tripping requests
 CREATE TABLE IF NOT EXISTS tripping_requests (
     id             INT AUTO_INCREMENT PRIMARY KEY,
@@ -414,119 +414,3 @@ CREATE TABLE IF NOT EXISTS property_pricing_detail_request_history (
     FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
     FOREIGN KEY (reviewed_by_agent_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
-
--- ============================================================
--- Migration: remove deprecated housing location preferences
--- Keep only preferred_type, budget_min, budget_max
--- ============================================================
-ALTER TABLE user_profiles DROP COLUMN IF EXISTS preferred_location;
-ALTER TABLE user_profiles DROP COLUMN IF EXISTS preferred_region_code;
-ALTER TABLE user_profiles DROP COLUMN IF EXISTS preferred_region_name;
-ALTER TABLE user_profiles DROP COLUMN IF EXISTS preferred_province_code;
-ALTER TABLE user_profiles DROP COLUMN IF EXISTS preferred_province_name;
-ALTER TABLE user_profiles DROP COLUMN IF EXISTS preferred_citymun_code;
-ALTER TABLE user_profiles DROP COLUMN IF EXISTS preferred_citymun_name;
-ALTER TABLE user_profiles DROP COLUMN IF EXISTS preferred_barangay_code;
-ALTER TABLE user_profiles DROP COLUMN IF EXISTS preferred_barangay_name;
-ALTER TABLE user_profiles DROP COLUMN IF EXISTS savings;
-
-ALTER TABLE users
-    ADD COLUMN IF NOT EXISTS middle_name VARCHAR(80) AFTER first_name;
-
-ALTER TABLE user_profiles
-    ADD COLUMN IF NOT EXISTS citizenship VARCHAR(30) AFTER civil_status,
-    ADD COLUMN IF NOT EXISTS gender VARCHAR(30) AFTER citizenship;
-
-ALTER TABLE user_profiles
-    ADD COLUMN IF NOT EXISTS has_valid_id BOOLEAN AFTER banner_mimetype,
-    ADD COLUMN IF NOT EXISTS has_income_proof BOOLEAN AFTER has_valid_id,
-    ADD COLUMN IF NOT EXISTS valid_id_data LONGBLOB AFTER has_income_proof,
-    ADD COLUMN IF NOT EXISTS valid_id_mimetype VARCHAR(80) AFTER valid_id_data,
-    ADD COLUMN IF NOT EXISTS valid_id_filename VARCHAR(255) AFTER valid_id_mimetype,
-    ADD COLUMN IF NOT EXISTS income_proof_data LONGBLOB AFTER valid_id_filename,
-    ADD COLUMN IF NOT EXISTS income_proof_mimetype VARCHAR(80) AFTER income_proof_data,
-    ADD COLUMN IF NOT EXISTS income_proof_filename VARCHAR(255) AFTER income_proof_mimetype,
-    ADD COLUMN IF NOT EXISTS esignature_data LONGBLOB AFTER income_proof_filename,
-    ADD COLUMN IF NOT EXISTS esignature_mimetype VARCHAR(80) AFTER esignature_data,
-    ADD COLUMN IF NOT EXISTS esignature_filename VARCHAR(255) AFTER esignature_mimetype;
-
-ALTER TABLE qualification_results
-    ADD COLUMN IF NOT EXISTS assessment_mode VARCHAR(20) DEFAULT 'reassess' AFTER similarity_score;
-
-ALTER TABLE user_profiles
-    ADD COLUMN IF NOT EXISTS street VARCHAR(120) AFTER home_barangay_name,
-    ADD COLUMN IF NOT EXISTS blk VARCHAR(30) AFTER street,
-    ADD COLUMN IF NOT EXISTS lot VARCHAR(30) AFTER blk,
-    ADD COLUMN IF NOT EXISTS country VARCHAR(80) AFTER lot,
-    ADD COLUMN IF NOT EXISTS zip_code VARCHAR(20) AFTER country,
-    ADD COLUMN IF NOT EXISTS subdivision_name VARCHAR(120) AFTER zip_code,
-    ADD COLUMN IF NOT EXISTS social_instagram VARCHAR(120) AFTER subdivision_name,
-    ADD COLUMN IF NOT EXISTS social_twitter_x VARCHAR(120) AFTER social_instagram,
-    ADD COLUMN IF NOT EXISTS social_viber VARCHAR(40) AFTER social_twitter_x,
-    ADD COLUMN IF NOT EXISTS social_whatsapp VARCHAR(40) AFTER social_viber;
-
-ALTER TABLE user_profiles
-    ADD COLUMN IF NOT EXISTS birthplace VARCHAR(120) AFTER birth_date,
-    ADD COLUMN IF NOT EXISTS birth_region_code VARCHAR(10) AFTER birthplace,
-    ADD COLUMN IF NOT EXISTS birth_region_name VARCHAR(100) AFTER birth_region_code,
-    ADD COLUMN IF NOT EXISTS birth_province_code VARCHAR(10) AFTER birth_region_name,
-    ADD COLUMN IF NOT EXISTS birth_province_name VARCHAR(100) AFTER birth_province_code,
-    ADD COLUMN IF NOT EXISTS birth_citymun_code VARCHAR(10) AFTER birth_province_name,
-    ADD COLUMN IF NOT EXISTS birth_citymun_name VARCHAR(120) AFTER birth_citymun_code,
-    ADD COLUMN IF NOT EXISTS birth_barangay_code VARCHAR(15) AFTER birth_citymun_name,
-    ADD COLUMN IF NOT EXISTS birth_barangay_name VARCHAR(120) AFTER birth_barangay_code,
-    ADD COLUMN IF NOT EXISTS employer_phone VARCHAR(30) AFTER employer_name,
-    ADD COLUMN IF NOT EXISTS employer_email VARCHAR(120) AFTER employer_phone,
-    ADD COLUMN IF NOT EXISTS employer_business_address VARCHAR(255) AFTER employer_email,
-    ADD COLUMN IF NOT EXISTS employer_region_code VARCHAR(10) AFTER employer_business_address,
-    ADD COLUMN IF NOT EXISTS employer_region_name VARCHAR(100) AFTER employer_region_code,
-    ADD COLUMN IF NOT EXISTS employer_province_code VARCHAR(10) AFTER employer_region_name,
-    ADD COLUMN IF NOT EXISTS employer_province_name VARCHAR(100) AFTER employer_province_code,
-    ADD COLUMN IF NOT EXISTS employer_citymun_code VARCHAR(10) AFTER employer_province_name,
-    ADD COLUMN IF NOT EXISTS employer_citymun_name VARCHAR(120) AFTER employer_citymun_code,
-    ADD COLUMN IF NOT EXISTS employer_barangay_code VARCHAR(15) AFTER employer_citymun_name,
-    ADD COLUMN IF NOT EXISTS employer_barangay_name VARCHAR(120) AFTER employer_barangay_code,
-    ADD COLUMN IF NOT EXISTS sss_gsis_umid VARCHAR(60) AFTER employer_email,
-    ADD COLUMN IF NOT EXISTS tin_no VARCHAR(30) AFTER sss_gsis_umid;
-
-ALTER TABLE user_profiles
-    MODIFY COLUMN employment_type ENUM('employed','ofw-landbased','ofw-seafarer','licensed-professional','with-financial-support','with-attorney-in-fact','with-co-borrower');
-
--- ============================================================
--- Migration alignment: projects, subdivision linkage, unit IDs
--- ============================================================
-ALTER TABLE subdivisions
-    ADD COLUMN IF NOT EXISTS project_id INT NULL AFTER name;
-
-ALTER TABLE projects
-    ADD COLUMN IF NOT EXISTS street VARCHAR(120) AFTER name,
-    ADD COLUMN IF NOT EXISTS `block` VARCHAR(30) AFTER street,
-    ADD COLUMN IF NOT EXISTS lot_no VARCHAR(30) AFTER `block`;
-
-ALTER TABLE subdivisions
-    ADD COLUMN IF NOT EXISTS street VARCHAR(120) AFTER project_id,
-    ADD COLUMN IF NOT EXISTS `block` VARCHAR(30) AFTER street,
-    ADD COLUMN IF NOT EXISTS lot_no VARCHAR(30) AFTER `block`;
-
-ALTER TABLE properties
-    ADD COLUMN IF NOT EXISTS unit_id VARCHAR(60) NULL AFTER subdivision_id,
-    ADD COLUMN IF NOT EXISTS price DECIMAL(14,2) NOT NULL DEFAULT 0.00 AFTER unit_type,
-    ADD COLUMN IF NOT EXISTS street VARCHAR(120) AFTER name,
-    ADD COLUMN IF NOT EXISTS `block` VARCHAR(30) AFTER street,
-    ADD COLUMN IF NOT EXISTS lot_no VARCHAR(30) AFTER `block`;
-
--- ============================================================
--- Migration alignment: tripping status lifecycle expansion
--- Ensure legacy rows are normalized before enum enforcement.
--- ============================================================
-UPDATE tripping_requests
-SET status = 'pending'
-WHERE status IS NULL OR TRIM(status) = '';
-
-ALTER TABLE tripping_requests
-    MODIFY COLUMN status ENUM('pending','approved','visited','rejected','sold') DEFAULT 'pending';
-
-ALTER TABLE tripping_requests
-    ADD COLUMN IF NOT EXISTS purchase_form_submitted BOOLEAN NOT NULL DEFAULT FALSE,
-    ADD COLUMN IF NOT EXISTS purchase_form_submitted_at DATETIME NULL,
-    ADD COLUMN IF NOT EXISTS purchase_form_data LONGTEXT NULL;
