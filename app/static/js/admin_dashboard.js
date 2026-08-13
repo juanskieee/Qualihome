@@ -5657,7 +5657,13 @@ document.getElementById('adminAvatarFileInput') && document.getElementById('admi
   if (!file) return;
   var fd = new FormData();
   fd.append('avatar', file);
-  fetch('/admin/profile/upload-avatar', { method: 'POST', body: fd })
+  var token = csrfToken();
+  if (token) fd.append('csrf_token', token);
+  fetch('/admin/profile/upload-avatar', {
+    method: 'POST',
+    headers: token ? { 'X-CSRFToken': token } : {},
+    body: fd
+  })
     .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
     .then(function (res) {
       if (!res.ok) { showToast(res.data.error || 'Upload failed.', 'danger'); return; }
@@ -5693,7 +5699,13 @@ document.getElementById('adminBannerFileInput') && document.getElementById('admi
   if (!file) return;
   var fd = new FormData();
   fd.append('banner', file);
-  fetch('/admin/profile/upload-banner', { method: 'POST', body: fd })
+  var token = csrfToken();
+  if (token) fd.append('csrf_token', token);
+  fetch('/admin/profile/upload-banner', {
+    method: 'POST',
+    headers: token ? { 'X-CSRFToken': token } : {},
+    body: fd
+  })
     .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
     .then(function (res) {
       if (!res.ok) { showToast(res.data.error || 'Upload failed.', 'danger'); return; }
@@ -5986,7 +5998,13 @@ var _adminPreviewType = null; // 'avatar' or 'banner'
       var fd       = new FormData();
       var endpoint = _adminPreviewType === 'avatar' ? '/admin/profile/upload-avatar' : '/admin/profile/upload-banner';
       fd.append(_adminPreviewType === 'avatar' ? 'avatar' : 'banner', file);
-      fetch(endpoint, { method: 'POST', body: fd })
+      var token = csrfToken();
+      if (token) fd.append('csrf_token', token);
+      fetch(endpoint, {
+        method: 'POST',
+        headers: token ? { 'X-CSRFToken': token } : {},
+        body: fd
+      })
         .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
         .then(function (res) {
           if (!res.ok) { showToast(res.data.error || 'Upload failed.', 'danger'); return; }
@@ -6034,7 +6052,11 @@ var _adminPreviewType = null; // 'avatar' or 'banner'
     deleteBtn.addEventListener('click', function () {
       if (!_adminPreviewType) return;
       var url = _adminPreviewType === 'avatar' ? '/admin/profile/delete-avatar' : '/admin/profile/delete-banner';
-      fetch(url, { method: 'POST' })
+      var token = csrfToken();
+      fetch(url, {
+        method: 'POST',
+        headers: token ? { 'X-CSRFToken': token } : {}
+      })
         .then(function (r) { return r.json(); })
         .then(function (data) {
           if (!data.success) { showToast(data.error || 'Delete failed.', 'danger'); return; }
