@@ -43,10 +43,13 @@ class Config:
     MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10 MB
 
     # Session cookie security
+    _IS_PRODUCTION = os.environ.get("FLASK_ENV", "development").lower() == "production"
+
     SESSION_COOKIE_HTTPONLY  = True
     SESSION_COOKIE_SAMESITE  = "Lax"
-    # Set SESSION_COOKIE_SECURE = True in production (requires HTTPS)
-    SESSION_COOKIE_SECURE    = False
+    # True when FLASK_ENV=production (Render/PythonAnywhere serve over HTTPS).
+    # Stays False for local http://localhost development.
+    SESSION_COOKIE_SECURE    = _IS_PRODUCTION
     # Session lifetime (used when session.permanent = True)
     PERMANENT_SESSION_LIFETIME = timedelta(hours=2)
     # Inactivity timeout in minutes (enforced in app.before_request).
@@ -56,7 +59,7 @@ class Config:
     REMEMBER_COOKIE_DURATION  = timedelta(days=30)
     REMEMBER_COOKIE_HTTPONLY  = True
     REMEMBER_COOKIE_SAMESITE  = "Lax"
-    REMEMBER_COOKIE_SECURE    = False
+    REMEMBER_COOKIE_SECURE    = _IS_PRODUCTION
 
     # SMTP mail settings (used by forgot/reset password)
     MAIL_SERVER    = os.environ.get("MAIL_SERVER", "")

@@ -116,23 +116,24 @@ def create_app(config_class=Config):
 		from .auth.routes import auth_bp
 		app.register_blueprint(auth_bp)
 	except Exception:
-		pass
+		app.logger.exception("Failed to register auth_bp")
 
 	try:
 		from .client.routes import client_bp
 		app.register_blueprint(client_bp)
 	except Exception:
-		pass
+		app.logger.exception("Failed to register client_bp")
 
 	try:
 		from .main.routes import main_bp
 		app.register_blueprint(main_bp)
 	except Exception:
-		pass
+		app.logger.exception("Failed to register main_bp")
 
-	# Warm up the in-memory C5.0 model on startup when enough data exists.
+	# Create tables if they do not exist yet, then seed demo accounts.
 	try:
 		with app.app_context():
+			db.create_all()
 			_ensure_default_users(app)
 	except Exception:
 		app.logger.exception("Default account bootstrap failed.")
@@ -167,4 +168,3 @@ def create_app(config_class=Config):
 			return "SMARTQUALIHOME is running."
 
 	return app
-
