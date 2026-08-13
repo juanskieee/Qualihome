@@ -30,10 +30,21 @@ class Config:
             f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
             "?charset=utf8mb4"
         )
-        SQLALCHEMY_ENGINE_OPTIONS = {
+
+        engine_options = {
             "pool_pre_ping": True,
             "pool_recycle": 180,
         }
+
+        # Aiven (and most managed MySQL providers) require TLS connections.
+        # DB_SSL_CA should point to a CA cert file path, e.g. Render's
+        # "Secret File" mount at /etc/secrets/aiven-ca.pem, or a local path
+        # such as instance/aiven-ca.pem for XAMPP/dev use.
+        DB_SSL_CA = os.environ.get("DB_SSL_CA", "")
+        if DB_SSL_CA:
+            engine_options["connect_args"] = {"ssl": {"ca": DB_SSL_CA}}
+
+        SQLALCHEMY_ENGINE_OPTIONS = engine_options
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     WTF_CSRF_ENABLED = True
@@ -47,7 +58,7 @@ class Config:
 
     SESSION_COOKIE_HTTPONLY  = True
     SESSION_COOKIE_SAMESITE  = "Lax"
-    # True when FLASK_ENV=production (Render/PythonAnywhere serve over HTTPS).
+    # True when FLASK_ENV=production (Render serves over HTTPS).
     # Stays False for local http://localhost development.
     SESSION_COOKIE_SECURE    = _IS_PRODUCTION
     # Session lifetime (used when session.permanent = True)
