@@ -21,7 +21,8 @@ class User(UserMixin, db.Model):
     email          = db.Column(db.String(120), unique=True, nullable=False, index=True)
     contact_number = db.Column(db.String(20),  nullable=True)
     password_hash  = db.Column(db.String(256), nullable=False)
-    role           = db.Column(db.String(20),  nullable=False, default="client")  # client / agent / admin
+    role           = db.Column(db.Enum("client", "agent", "admin", name="user_role"),
+                                nullable=False, default="client")
     is_active      = db.Column(db.Boolean, default=True, nullable=False)
     forgot_password_attempts = db.Column(db.Integer, default=0, nullable=False)
     forgot_password_window_started_at = db.Column(db.DateTime, nullable=True)
@@ -361,9 +362,9 @@ class Property(db.Model):
     loanable_percentage = db.Column(db.Numeric(5, 2), nullable=True)
     vat_rate = db.Column(db.Numeric(5, 2), nullable=True)
     lmf_rate = db.Column(db.Numeric(5, 2), nullable=True)
-    bedrooms    = db.Column(db.Integer)
-    bathrooms   = db.Column(db.Integer)
-    storeys     = db.Column(db.Integer)          # number of floors/storeys
+    bedrooms    = db.Column(db.SmallInteger)      # matches schema.sql TINYINT UNSIGNED
+    bathrooms   = db.Column(db.SmallInteger)      # matches schema.sql TINYINT UNSIGNED
+    storeys     = db.Column(db.SmallInteger)      # matches schema.sql TINYINT UNSIGNED; number of floors/storeys
     floor_area  = db.Column(db.Float)            # sqm
     lot_area    = db.Column(db.Float)           # sqm
     description = db.Column(db.Text)
@@ -469,7 +470,7 @@ class HistoricalBuyer(db.Model):
 
     id               = db.Column(db.Integer, primary_key=True)
     civil_status     = db.Column(db.String(20))
-    dependents       = db.Column(db.Integer, default=0)
+    dependents       = db.Column(db.SmallInteger, default=0)  # matches schema.sql TINYINT
     age              = db.Column(db.Integer, default=30)
     employment_type  = db.Column(db.String(30))
     tenure_months    = db.Column(db.Integer, default=0)
@@ -477,7 +478,10 @@ class HistoricalBuyer(db.Model):
     monthly_loans    = db.Column(db.Numeric(12, 2), default=0)
     other_deductions = db.Column(db.Numeric(12, 2), default=0)
     dti_ratio        = db.Column(db.Float)
-    outcome          = db.Column(db.String(30))  # Qualified / Conditionally Qualified / Not Qualified
+    outcome          = db.Column(
+        db.Enum("Qualified", "Conditionally Qualified", "Not Qualified", name="training_data_outcome"),
+        nullable=False,
+    )
     notes            = db.Column(db.String(255))
     created_at       = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
