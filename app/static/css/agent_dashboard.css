@@ -41,6 +41,74 @@
   cursor: zoom-in;
 }
 
+/* ── Full pricing breakdown (read-only in model view) ────────── */
+.lem-pb-wrap {
+  background: #f8f9fb;
+  border: 1px solid var(--clr-border);
+  border-radius: 10px;
+  padding: 1rem;
+}
+.lem-pb-header {
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  font-size: var(--fs-lg);
+  color: var(--clr-primary);
+  margin-bottom: .85rem;
+}
+.lem-pb-sec-label {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--clr-muted);
+  margin: .9rem 0 .4rem;
+}
+.lem-pb-sec-label:first-of-type { margin-top: 0; }
+.lem-pb-card {
+  background: #fff;
+  border: 1px solid var(--clr-border);
+  border-radius: 8px;
+  padding: .55rem .7rem;
+  height: 100%;
+}
+.lem-pb-label {
+  font-size: var(--fs-2xs);
+  color: var(--clr-muted);
+  margin-bottom: .15rem;
+}
+.lem-pb-value {
+  font-weight: 700;
+  color: var(--clr-text);
+}
+.lem-pb-sub {
+  font-size: var(--fs-2xs);
+  color: var(--clr-muted);
+}
+.lem-pb-amort-card {
+  background: #fff;
+  border: 1px solid var(--clr-border);
+  border-radius: 8px;
+  padding: .55rem .7rem;
+  text-align: center;
+  height: 100%;
+}
+.lem-pb-amort-term {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--clr-blue);
+  letter-spacing: .05em;
+}
+.lem-pb-amort-value {
+  font-weight: 700;
+  color: var(--clr-text);
+  font-size: var(--fs-lg);
+}
+.lem-pb-amort-unit {
+  font-size: var(--fs-2xs);
+  color: var(--clr-muted);
+}
+
 /* ── Full detail request action buttons ─────────────────────── */
 .detail-modal-action-btn {
   width: 34px;

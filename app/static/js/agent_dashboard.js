@@ -476,6 +476,66 @@ function _lemShowSlide(idx) {
   });
 }
 
+function renderAgentPricingBreakdown(pricingJson) {
+  function setText(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = val;
+  }
+  function fmt(v) {
+    var n = Number(v || 0);
+    if (!isFinite(n)) n = 0;
+    return '\u20b1' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function pct(v) {
+    var n = Number(v || 0);
+    if (!isFinite(n)) n = 0;
+    return n.toFixed(2) + '%';
+  }
+  var ids = [
+    'lemPvTotalSelling', 'lemPvPromoDiscount', 'lemPvNetSelling', 'lemPvVatAmount', 'lemPvVatRate',
+    'lemPvLmfAmount', 'lemPvLmfRate', 'lemPvTotalContract', 'lemPvReservationFee', 'lemPvTotalDownpayment',
+    'lemPvDownpaymentRate', 'lemPvMonthlyDownpayment', 'lemPvDownpaymentTerms', 'lemPvLoanableAmount',
+    'lemPvLoanableRate', 'lemPvAnnualInterest', 'lemPvAmort5', 'lemPvAmort10', 'lemPvAmort15', 'lemPvAmort20',
+    'lemPvReqIncome5', 'lemPvReqIncome10', 'lemPvReqIncome15', 'lemPvReqIncome20'
+  ];
+  ids.forEach(function (id) { setText(id, '\u2014'); });
+
+  var pricingData = null;
+  if (pricingJson) {
+    try { pricingData = (typeof pricingJson === 'string') ? JSON.parse(pricingJson) : pricingJson; }
+    catch (_) { pricingData = null; }
+  }
+  if (!pricingData || typeof pricingData !== 'object') return;
+
+  setText('lemPvTotalSelling', fmt(pricingData.total_selling_price || pricingData.tcp || 0));
+  setText('lemPvPromoDiscount', pct(pricingData.promo_discount_rate || 0));
+  setText('lemPvNetSelling', 'Net Selling: ' + fmt(pricingData.net_selling_price || 0));
+  setText('lemPvVatAmount', fmt(pricingData.vat_amount || 0));
+  setText('lemPvVatRate', pct(pricingData.vat_rate || 0));
+  setText('lemPvLmfAmount', fmt(pricingData.lmf_amount || 0));
+  setText('lemPvLmfRate', pct(pricingData.lmf_rate || 0));
+  setText('lemPvTotalContract', fmt(pricingData.total_contract_price || pricingData.fully_computed_house_price || 0));
+  setText('lemPvReservationFee', fmt(pricingData.reservation_fee || 0));
+  setText('lemPvTotalDownpayment', fmt(pricingData.total_downpayment || pricingData.down_payment || 0));
+  setText('lemPvDownpaymentRate', pct(pricingData.downpayment_rate || 0));
+  setText('lemPvMonthlyDownpayment', fmt(pricingData.monthly_downpayment || pricingData.equity_monthly || 0));
+  setText('lemPvDownpaymentTerms', ((pricingData.downpayment_terms_months || pricingData.equity_months || 0)) + ' months');
+  setText('lemPvLoanableAmount', fmt(pricingData.total_loanable_amount || pricingData.financed_amount || 0));
+  setText('lemPvLoanableRate', pct(pricingData.loanable_percentage || 0));
+  setText('lemPvAnnualInterest', pct(pricingData.annual_interest_rate || 0));
+
+  var amort = pricingData.amortization || {};
+  var req = pricingData.required_monthly_income || {};
+  setText('lemPvAmort5', fmt(amort['5'] || 0));
+  setText('lemPvAmort10', fmt(amort['10'] || 0));
+  setText('lemPvAmort15', fmt(amort['15'] || 0));
+  setText('lemPvAmort20', fmt(amort['20'] || 0));
+  setText('lemPvReqIncome5', fmt(req['5'] || 0));
+  setText('lemPvReqIncome10', fmt(req['10'] || 0));
+  setText('lemPvReqIncome15', fmt(req['15'] || 0));
+  setText('lemPvReqIncome20', fmt(req['20'] || 0));
+}
+
 function openEditPropertyModal(propId) {
   _editPropId = propId;
   _editPropIsSold = false;
@@ -494,6 +554,7 @@ function openEditPropertyModal(propId) {
   }
   var listingStatus = (card.dataset.listingStatus || '').toLowerCase();
   _editPropIsSold = listingStatus === 'sold';
+  renderAgentPricingBreakdown(card.dataset.pricingJson);
 
   document.getElementById('ep_name').value        = card.dataset.name        || '';
   var streetEl = document.getElementById('ep_street');

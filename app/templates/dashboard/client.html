@@ -748,6 +748,23 @@
         <!-- Icon chips (beds / baths / storeys / areas) -->
         <div id="pvmIconChips" class="pvm-icon-chips mb-3"></div>
 
+        <!-- Qualification by selected loan year -->
+        <div id="pvmQualWrap" class="pvm-qual-wrap mb-3 d-none">
+          <div class="pvm-qual-row">
+            <label class="pvm-qual-label" for="pvmQualYearSelect"><i class="fas fa-check-circle me-1"></i>Qualification</label>
+            <select id="pvmQualYearSelect" class="form-select form-select-sm pvm-qual-select">
+              <option value="5">5-Year Term</option>
+              <option value="10">10-Year Term</option>
+              <option value="15">15-Year Term</option>
+              <option value="20">20-Year Term</option>
+            </select>
+            <span id="pvmQualStatusBadge" class="sqh-badge badge-not-qualified">Not Qualified</span>
+            <button type="button" id="pvmConditionalBtn" class="btn btn-sm btn-warning d-none">
+              <i class="fas fa-exclamation-triangle me-1"></i> Conditional Requirements
+            </button>
+          </div>
+        </div>
+
         <hr class="my-3">
 
         <!-- Details grid -->
@@ -962,6 +979,41 @@
           <button type="button" class="btn btn-lime px-4" id="pvmRequestTripBtn">
             <i class="fas fa-calendar-plus me-1"></i> Request Visit
           </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Conditional Requirements Modal #}
+<div class="modal fade" id="conditionalReqModal" tabindex="-1" aria-labelledby="conditionalReqLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-md">
+    <div class="modal-content sqh-modal">
+      <div class="sqh-modal-header">
+        <div class="d-flex align-items-center gap-2">
+          <i class="fas fa-exclamation-triangle text-white"></i>
+          <span class="sqh-modal-title" id="conditionalReqLabel">Conditional Requirements</span>
+        </div>
+        <button type="button" class="sqh-modal-close" data-bs-dismiss="modal" aria-label="Close"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="text-muted small mb-3">You may still qualify for this model by satisfying one or more of the following conditions:</p>
+        <ul class="list-unstyled mb-4">
+          <li class="mb-2"><i class="fas fa-user-friends me-2 text-primary"></i><strong>Need a Co-Borrower</strong></li>
+          <li class="mb-2"><i class="fas fa-clock me-2 text-primary"></i><strong>Longer Loan Term</strong></li>
+          <li class="mb-2"><i class="fas fa-hand-holding-usd me-2 text-primary"></i><strong>Larger Down Payment</strong></li>
+          <li class="mb-2"><i class="fas fa-briefcase me-2 text-primary"></i><strong>Improve Employment Stability</strong></li>
+        </ul>
+        <div class="sqh-info-box">
+          <div class="fw-bold mb-1"><i class="fas fa-user-tie me-2"></i><span id="crAgentName">Ann Regar</span></div>
+          <div class="small text-muted mb-2">Our agent can walk you through these options and help you find the right path to owning your home.</div>
+          <div class="d-flex flex-wrap gap-2">
+            <a href="#" target="_blank" rel="noopener" class="btn btn-outline-blue btn-sm" id="crFacebookBtn"><i class="fab fa-facebook-f me-1"></i> Facebook</a>
+            <a href="#" target="_blank" rel="noopener" class="btn btn-outline-blue btn-sm" id="crInstagramBtn"><i class="fab fa-instagram me-1"></i> Instagram</a>
+            <a href="#" target="_blank" rel="noopener" class="btn btn-outline-blue btn-sm" id="crViberBtn"><i class="fas fa-phone-alt me-1"></i> Viber</a>
+            <a href="#" target="_blank" rel="noopener" class="btn btn-outline-blue btn-sm" id="crWhatsAppBtn"><i class="fab fa-whatsapp me-1"></i> WhatsApp</a>
+            <a href="#" target="_blank" rel="noopener" class="btn btn-outline-blue btn-sm" id="crPhoneBtn"><i class="fas fa-phone me-1"></i> Call</a>
+          </div>
         </div>
       </div>
     </div>
@@ -2522,7 +2574,10 @@
         {% set has_request = p.id in requested_prop_ids %}
         {% set detail_status = detail_request_status_by_property.get(p.id, 'none') %}
         {% set pricing = property_pricing_map.get(p.id, {}) %}
-        {% set is_eligible = qual_result and qual_result.max_loanable and (p.price|float <= qual_result.max_loanable|float) %}
+        {% set client_income = profile.gross_income|float if profile and profile.gross_income else 0 %}
+        {% set req_income_map = pricing.required_monthly_income if pricing and pricing.required_monthly_income else {} %}
+        {% set is_eligible_any_year = client_income > 0 and req_income_map and (client_income >= (req_income_map.get('5', 0)|float) or client_income >= (req_income_map.get('10', 0)|float) or client_income >= (req_income_map.get('15', 0)|float) or client_income >= (req_income_map.get('20', 0)|float)) %}
+        {% set is_eligible = is_eligible_any_year %}
         {% if is_eligible %}
         <div class="col-12 col-sm-6 col-xl-4 home-qualified-card-col">
           <div class="prop-card prop-card-clickable"
@@ -2547,12 +2602,17 @@
                data-pricing-json="{{ pricing|tojson|forceescape }}"
                data-pricing-approved="{{ '1' if detail_status == 'approved' else '0' }}"
                data-prop-qualified="{{ '1' if is_eligible else '0' }}"
-               data-prop-agent="{{ p.agent.full_name if p.agent else '' }}">
+               data-prop-agent="{{ p.agent.full_name if p.agent else '' }}"
+               data-agent-contact="{{ agent_contact_map.get(p.id, {})|tojson|forceescape }}">
             <div class="prop-card-img-wrap">
               {% if first_img %}
               <img src="{{ url_for('main.serve_upload', filename=first_img) }}" alt="{{ p.name }}" class="prop-card-img" loading="lazy">
               {% else %}
               <div class="prop-card-img-placeholder"><i class="fas fa-home"></i></div>
+              {% endif %}
+              {% if qual_result and qual_result.similarity_score is not none %}
+              {% set sim_score = qual_result.similarity_score %}
+              <span class="sim-badge sim-badge--{{ 'high' if sim_score >= 0.70 else ('moderate' if sim_score >= 0.40 else 'low') }}"><i class="fas fa-user-check"></i>{{ 'High' if sim_score >= 0.70 else ('Moderate' if sim_score >= 0.40 else 'Low') }} Similarity</span>
               {% endif %}
               <span class="prop-card-img-count"><i class="fas fa-images me-1"></i>{{ img_count }}</span>
               <div class="prop-card-actions">
@@ -2650,12 +2710,17 @@
                data-pricing-json="{{ pricing|tojson|forceescape }}"
                data-pricing-approved="{{ '1' if detail_status == 'approved' else '0' }}"
                data-prop-qualified="{{ '1' if is_eligible else '0' }}"
-               data-prop-agent="{{ p.agent.full_name if p.agent else '' }}">
+               data-prop-agent="{{ p.agent.full_name if p.agent else '' }}"
+               data-agent-contact="{{ agent_contact_map.get(p.id, {})|tojson|forceescape }}">
             <div class="prop-card-img-wrap">
               {% if first_img %}
               <img src="{{ url_for('main.serve_upload', filename=first_img) }}" alt="{{ p.name }}" class="prop-card-img" loading="lazy">
               {% else %}
               <div class="prop-card-img-placeholder"><i class="fas fa-home"></i></div>
+              {% endif %}
+              {% if qual_result and qual_result.similarity_score is not none %}
+              {% set sim_score = qual_result.similarity_score %}
+              <span class="sim-badge sim-badge--{{ 'high' if sim_score >= 0.70 else ('moderate' if sim_score >= 0.40 else 'low') }}"><i class="fas fa-user-check"></i>{{ 'High' if sim_score >= 0.70 else ('Moderate' if sim_score >= 0.40 else 'Low') }} Similarity</span>
               {% endif %}
               <span class="prop-card-img-count"><i class="fas fa-images me-1"></i>{{ img_count }}</span>
               <div class="prop-card-actions">
@@ -2881,17 +2946,43 @@
       <div class="dash-fb-group">
         <label class="dash-fb-label"><i class="fas fa-check-circle me-1"></i>Qualification</label>
           <select id="browseQualifiedFilter" class="form-select dash-fb-select">
-          <option value="">All</option>
-          <option value="qualified">Qualified Only</option>
-          <option value="qualified_5">Qualified at 5 Years</option>
-          <option value="qualified_10">Qualified at 10 Years</option>
-          <option value="qualified_15">Qualified at 15 Years</option>
-          <option value="qualified_20">Qualified at 20 Years</option>
+          <option value="">All Years</option>
+          <option value="5">Split by 5 Years</option>
+          <option value="10">Split by 10 Years</option>
+          <option value="15">Split by 15 Years</option>
+          <option value="20">Split by 20 Years</option>
         </select>
       </div>
     </div>
 
       {% if all_props %}
+      {# Year-split sections (shown when a qualification year is selected) #}
+      <div id="browseSections" class="d-none">
+        <div class="browse-section" id="browseSectionQualified">
+          <div class="d-flex align-items-center gap-2 mb-3">
+            <span class="browse-section-icon" style="color:var(--clr-accent-dk);"><i class="fas fa-check-circle"></i></span>
+            <h6 class="mb-0 fw-semibold">Qualified</h6>
+            <span class="sqh-badge badge-qualified" id="browseQualifiedCount">0</span>
+          </div>
+          <div class="row g-3" id="browseSecQualifiedGrid"></div>
+        </div>
+        <div class="browse-section" id="browseSectionConditional">
+          <div class="d-flex align-items-center gap-2 mb-3">
+            <span class="browse-section-icon" style="color:#b8860b;"><i class="fas fa-exclamation-triangle"></i></span>
+            <h6 class="mb-0 fw-semibold">Conditionally Qualified</h6>
+            <span class="sqh-badge badge-conditional" id="browseConditionalCount">0</span>
+          </div>
+          <div class="row g-3" id="browseSecConditionalGrid"></div>
+        </div>
+        <div class="browse-section" id="browseSectionNotQualified">
+          <div class="d-flex align-items-center gap-2 mb-3">
+            <span class="browse-section-icon" style="color:var(--clr-primary);"><i class="fas fa-times-circle"></i></span>
+            <h6 class="mb-0 fw-semibold">Not Qualified</h6>
+            <span class="sqh-badge badge-not-qualified" id="browseNotQualifiedCount">0</span>
+          </div>
+          <div class="row g-3" id="browseSecNotQualifiedGrid"></div>
+        </div>
+      </div>
       <div class="row g-3" id="browseCardsGrid">
         {% for p in all_props %}
         {% set first_img = p.images.split(',')[0].strip() if p.images else '' %}
@@ -2953,12 +3044,17 @@
                data-detail-request-status="{{ detail_status }}"
                data-pricing-json="{{ pricing|tojson|forceescape }}"
                data-pricing-approved="{{ '1' if detail_status == 'approved' else '0' }}"
-               data-prop-agent="{{ p.agent.full_name if p.agent else '' }}">
+               data-prop-agent="{{ p.agent.full_name if p.agent else '' }}"
+               data-agent-contact="{{ agent_contact_map.get(p.id, {})|tojson|forceescape }}">
             <div class="prop-card-img-wrap">
               {% if first_img %}
               <img src="{{ url_for('main.serve_upload', filename=first_img) }}" alt="{{ p.name }}" class="prop-card-img" loading="lazy">
               {% else %}
               <div class="prop-card-img-placeholder"><i class="fas fa-home"></i></div>
+              {% endif %}
+              {% if qual_result and qual_result.similarity_score is not none %}
+              {% set sim_score = qual_result.similarity_score %}
+              <span class="sim-badge sim-badge--{{ 'high' if sim_score >= 0.70 else ('moderate' if sim_score >= 0.40 else 'low') }}"><i class="fas fa-user-check"></i>{{ 'High' if sim_score >= 0.70 else ('Moderate' if sim_score >= 0.40 else 'Low') }} Similarity</span>
               {% endif %}
               <span class="prop-card-img-count"><i class="fas fa-images me-1"></i>{{ img_count }}</span>
               <div class="prop-card-actions">

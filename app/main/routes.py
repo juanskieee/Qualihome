@@ -374,17 +374,54 @@ def _build_agent_availability_summary(all_agents: list[User]) -> dict[int, dict]
     return summary
 
 
-def _compute_property_pricing(property_item: Property) -> dict:
-    total_selling_price = float(property_item.price or 0)
-    promo_discount_rate = float(property_item.promo_discount_rate or 0)
-    reservation_fee = float(property_item.reservation_fee or 0)
-    downpayment_rate = float(property_item.downpayment_rate or _get_system_config_float("pricing_dp_rate", 20.0))
-    downpayment_terms = int(property_item.downpayment_terms_months or _get_system_config_int("pricing_equity_months", 24) or 24)
-    loanable_percentage = float(property_item.loanable_percentage or 80.0)
-    vat_rate = float(property_item.vat_rate or 12.0)
-    lmf_rate = float(property_item.lmf_rate or 10.0)
-    annual_interest_rate = _get_system_config_float("pricing_annual_interest_rate", 8.5)
-    required_income_ratio = _get_system_config_float("pricing_required_income_ratio", 30.0)
+def _resolve_pricing_inputs(overrides: dict | None = None) -> dict:
+    """Resolve pricing inputs from optional overrides, falling back to system config defaults."""
+    overrides = overrides or {}
+
+    def _num(key, default):
+        raw = overrides.get(key)
+        if raw in (None, ""):
+            return float(default)
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            return float(default)
+
+    downpayment_terms_default = _get_system_config_int("pricing_equity_months", 24) or 24
+    raw_terms = overrides.get("downpayment_terms_months")
+    if raw_terms in (None, ""):
+        downpayment_terms = int(downpayment_terms_default)
+    else:
+        try:
+            downpayment_terms = int(float(raw_terms))
+        except (TypeError, ValueError):
+            downpayment_terms = int(downpayment_terms_default)
+
+    return {
+        "price": _num("price", 0.0),
+        "promo_discount_rate": _num("promo_discount_rate", 0.0),
+        "reservation_fee": _num("reservation_fee", 0.0),
+        "downpayment_rate": _num("downpayment_rate", _get_system_config_float("pricing_dp_rate", 20.0)),
+        "downpayment_terms_months": downpayment_terms,
+        "loanable_percentage": _num("loanable_percentage", 80.0),
+        "vat_rate": _num("vat_rate", 12.0),
+        "lmf_rate": _num("lmf_rate", 10.0),
+        "annual_interest_rate": _num("annual_interest_rate", _get_system_config_float("pricing_annual_interest_rate", 8.5)),
+        "required_income_ratio": _num("required_income_ratio", _get_system_config_float("pricing_required_income_ratio", 30.0)),
+    }
+
+
+def _compute_pricing_values(values: dict) -> dict:
+    total_selling_price = float(values.get("price") or 0)
+    promo_discount_rate = float(values.get("promo_discount_rate") or 0)
+    reservation_fee = float(values.get("reservation_fee") or 0)
+    downpayment_rate = float(values.get("downpayment_rate") or 0)
+    downpayment_terms = int(values.get("downpayment_terms_months") or 24)
+    loanable_percentage = float(values.get("loanable_percentage") or 0)
+    vat_rate = float(values.get("vat_rate") or 0)
+    lmf_rate = float(values.get("lmf_rate") or 0)
+    annual_interest_rate = float(values.get("annual_interest_rate") or 0)
+    required_income_ratio = float(values.get("required_income_ratio") or 0)
 
     downpayment_terms = max(downpayment_terms, 1)
     required_income_ratio = max(required_income_ratio, 1.0)
@@ -445,6 +482,42 @@ def _compute_property_pricing(property_item: Property) -> dict:
         "financed_amount": round(total_loanable_amount, 2),
         "fully_computed_house_price": round(total_contract_price, 2),
     }
+
+
+def _compute_property_pricing(property_item: Property) -> dict:
+    overrides = {
+        "price": property_item.price,
+        "promo_discount_rate": property_item.promo_discount_rate,
+        "reservation_fee": property_item.reservation_fee,
+        "downpayment_rate": property_item.downpayment_rate,
+        "downpayment_terms_months": property_item.downpayment_terms_months,
+        "loanable_percentage": property_item.loanable_percentage,
+        "vat_rate": property_item.vat_rate,
+        "lmf_rate": property_item.lmf_rate,
+    }
+    return _compute_pricing_values(_resolve_pricing_inputs(overrides))
+
+
+@main_bp.route("/admin/property/pricing-preview", methods=["GET"])
+@login_required
+def admin_property_pricing_preview():
+    if current_user.role != "admin":
+        return jsonify(ok=False, error="Forbidden"), 403
+    overrides = {}
+    for key in (
+        "price", "promo_discount_rate", "reservation_fee", "downpayment_rate",
+        "downpayment_terms_months", "loanable_percentage", "vat_rate", "lmf_rate",
+        "annual_interest_rate", "required_income_ratio",
+    ):
+        raw = (request.args.get(key) or "").strip()
+        if raw:
+            overrides[key] = raw
+    try:
+        values = _resolve_pricing_inputs(overrides)
+        pricing = _compute_pricing_values(values)
+        return jsonify(ok=True, pricing=pricing)
+    except Exception as exc:
+        return jsonify(ok=False, error=f"Pricing preview failed: {exc}"), 400
 
 
 @main_bp.route("/")
@@ -632,6 +705,21 @@ def client_dashboard():
         if not matched_props:
             matched_props = all_props  # preferences/budget too restrictive — show all
 
+    # Agent contact details per property (for the Conditional Requirements modal).
+    agent_contact_map = {}
+    for _prop in all_props:
+        _ag = _prop.agent if _prop else None
+        if not _ag:
+            continue
+        _ap = _ag.profile
+        agent_contact_map[int(_prop.id)] = {
+            "name": _ag.full_name,
+            "phone": (_ap.contact_no if _ap and _ap.contact_no else "") or (_ag.contact_number or ""),
+            "instagram": (_ap.social_instagram if _ap else "") or "",
+            "viber": (_ap.social_viber if _ap else "") or "",
+            "whatsapp": (_ap.social_whatsapp if _ap else "") or "",
+        }
+
     # Client's tripping requests
     my_trips = (TrippingRequest.query
                 .filter_by(client_id=current_user.id)
@@ -791,6 +879,7 @@ def client_dashboard():
         detail_request_status_by_property=detail_request_status_by_property,
         approved_detail_property_ids=approved_detail_property_ids,
         property_pricing_map=property_pricing_map,
+        agent_contact_map=agent_contact_map,
         buyer_bank_options=buyer_bank_options,
         country_options=country_options,
         live_meter_cfg=live_meter_cfg,
@@ -826,6 +915,11 @@ def agent_dashboard():
 
     pending_trips_count   = sum(1 for t in my_trips if t.status == "pending")
     active_listings_count = sum(1 for p in my_props if p.status == "available")
+
+    agent_property_pricing_map = {
+        int(p.id): _compute_property_pricing(p)
+        for p in my_props if p and p.id
+    }
 
     all_subdivisions = Subdivision.query.order_by(Subdivision.name).all()
     agent_info       = current_user.profile
@@ -961,6 +1055,7 @@ def agent_dashboard():
         assignment_feed_items=assignment_feed_items,
         sales_snapshot=sales_snapshot,
         all_subdivisions=all_subdivisions,
+        agent_property_pricing_map=agent_property_pricing_map,
         agent_info=agent_info,
         avatar_url=avatar_url,
         banner_url=banner_url,
@@ -1118,6 +1213,9 @@ def admin_dashboard():
     pending_trip_requests = [t for t in all_trip_requests if _normalize_trip_status(t.status) == "pending"]
     pending_trip_count = len(pending_trip_requests)
 
+    pending_detail_request_count = PropertyPricingDetailRequest.query.filter_by(status="pending").count()
+    default_annual_interest_rate = _get_system_config_float("pricing_annual_interest_rate", 8.5)
+
     trip_dates = sorted({t.preferred_date for t in pending_trip_requests if t.preferred_date})
     available_agent_ids_by_date = {}
     if trip_dates:
@@ -1249,6 +1347,8 @@ def admin_dashboard():
                            agent_availability_summary=agent_availability_summary,
                            pending_trip_requests=all_trip_requests,
                            pending_trip_count=pending_trip_count,
+                           pending_detail_request_count=pending_detail_request_count,
+                           default_annual_interest_rate=default_annual_interest_rate,
                            available_agents_by_trip=available_agents_by_trip,
                            activity_logs=activity_logs,
                            pending_props=pending_props,
@@ -2960,6 +3060,10 @@ def agent_submit_property():
         except (TypeError, ValueError):
             assigned_agent = None
 
+    status_raw = (request.form.get("status") or "available").strip().lower()
+    if status_raw not in ("available", "reserved", "sold"):
+        status_raw = "available"
+
     prop = Property(
         name=name,
         street=street or None,
@@ -2990,7 +3094,7 @@ def agent_submit_property():
         images=",".join(image_names) if image_names else None,
         agent_id=(assigned_agent.id if assigned_agent else None),
         subdivision_id=subdivision_id,
-        status="available",
+        status=status_raw,
         approval_status="approved",
     )
     db.session.add(prop)

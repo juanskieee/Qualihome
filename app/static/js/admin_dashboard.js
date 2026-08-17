@@ -6887,6 +6887,134 @@ var _pendingAcpFiles = [];
     }, 220);
   }
 
+  /* ── Live pricing breakdown preview ───────────────────────── */
+  var _acpPreviewDebounceTimer = null;
+  var _acpPreviewTicket = 0;
+
+  function _acpFmt(v) {
+    var n = Number(v || 0);
+    if (!isFinite(n)) n = 0;
+    return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function _acpRenderPreview(data, rateProvided) {
+    var warnEl = document.getElementById('acpPreviewWarn');
+    var emptyEl = document.getElementById('acpPreviewEmpty');
+    var wrapEl = document.getElementById('acpPreviewWrap');
+    if (!data || !data.pricing) {
+      if (warnEl) warnEl.classList.add('d-none');
+      if (emptyEl) emptyEl.classList.remove('d-none');
+      if (wrapEl) wrapEl.classList.add('d-none');
+      return;
+    }
+    var p = data.pricing;
+    var hasRate = rateProvided === true && Number(p.annual_interest_rate || 0) > 0;
+    if (warnEl) warnEl.classList.toggle('d-none', hasRate);
+    if (emptyEl) emptyEl.classList.add('d-none');
+    if (wrapEl) wrapEl.classList.remove('d-none');
+
+    function setTxt(id, txt) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = txt;
+    }
+    setTxt('acpPreviewTcp', _acpFmt(p.total_selling_price));
+    setTxt('acpPreviewNet', _acpFmt(p.net_selling_price));
+    setTxt('acpPreviewTotalContract', _acpFmt(p.total_contract_price));
+    setTxt('acpPreviewMonthlyDp', _acpFmt(p.monthly_downpayment));
+    setTxt('acpPreviewLoanable', _acpFmt(p.total_loanable_amount));
+    setTxt('acpPreviewVatLmf', _acpFmt((Number(p.vat_amount) || 0) + (Number(p.lmf_amount) || 0)) + ' (VAT ' + _acpFmt(p.vat_amount) + ' / LMF ' + _acpFmt(p.lmf_amount) + ')');
+
+    var amort = (p.amortization && typeof p.amortization === 'object') ? p.amortization : {};
+    var income = (p.required_monthly_income && typeof p.required_monthly_income === 'object') ? p.required_monthly_income : {};
+    var years = [5, 10, 15, 20];
+    var amortRow = document.getElementById('acpPreviewAmortRow');
+    var incomeRow = document.getElementById('acpPreviewIncomeRow');
+    if (amortRow) {
+      amortRow.innerHTML = years.map(function (y) {
+        var val = amort[y];
+        var display = hasRate ? _acpFmt(val) : '<span class="text-muted">—</span>';
+        return '<div class="col-sm-6 col-xl-3">'
+          + '<div class="border rounded p-2 h-100">'
+          + '<div class="small text-muted">' + y + ' years</div>'
+          + '<div class="fw-semibold">' + display + '</div>'
+          + '</div></div>';
+      }).join('');
+    }
+    if (incomeRow) {
+      incomeRow.innerHTML = years.map(function (y) {
+        var val = income[y];
+        var display = hasRate ? _acpFmt(val) : '<span class="text-muted">—</span>';
+        return '<div class="col-sm-6 col-xl-3">'
+          + '<div class="border rounded p-2 h-100">'
+          + '<div class="small text-muted">' + y + ' years</div>'
+          + '<div class="fw-semibold">' + display + '</div>'
+          + '</div></div>';
+      }).join('');
+    }
+  }
+
+  function _acpRefreshPreview() {
+    function val(id) {
+      var el = document.getElementById(id);
+      return el ? String(el.value || '').trim() : '';
+    }
+    var price = val('acp_price');
+    var rateProvided = !!String(val('acp_annual_interest_rate') || '').trim();
+    if (!price) {
+      var warnEl = document.getElementById('acpPreviewWarn');
+      if (warnEl) warnEl.classList.add('d-none');
+      var emptyEl = document.getElementById('acpPreviewEmpty');
+      if (emptyEl) emptyEl.classList.remove('d-none');
+      var wrapEl = document.getElementById('acpPreviewWrap');
+      if (wrapEl) wrapEl.classList.add('d-none');
+      return;
+    }
+    var params = {
+      price: price,
+      promo_discount_rate: val('acp_promo_discount_rate'),
+      reservation_fee: val('acp_reservation_fee'),
+      downpayment_rate: val('acp_downpayment_rate'),
+      downpayment_terms_months: val('acp_downpayment_terms_months'),
+      loanable_percentage: val('acp_loanable_percentage'),
+      vat_rate: val('acp_vat_rate'),
+      lmf_rate: val('acp_lmf_rate'),
+      annual_interest_rate: val('acp_annual_interest_rate')
+    };
+    var qs = Object.keys(params).filter(function (k) { return String(params[k] || '').trim() !== ''; })
+      .map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); })
+      .join('&');
+    var ticket = ++_acpPreviewTicket;
+    fetch('/admin/property/pricing-preview?' + qs, {
+      method: 'GET',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      cache: 'no-store'
+    })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (data) {
+        if (ticket !== _acpPreviewTicket) return;
+        _acpRenderPreview(data && data.ok ? data : null, rateProvided);
+      })
+      .catch(function () {
+        if (ticket !== _acpPreviewTicket) return;
+        _acpRenderPreview(null, rateProvided);
+      });
+  }
+
+  function _debouncedAcpPreview() {
+    if (_acpPreviewDebounceTimer) clearTimeout(_acpPreviewDebounceTimer);
+    _acpPreviewDebounceTimer = setTimeout(_acpRefreshPreview, 300);
+  }
+
+  ['acp_price', 'acp_promo_discount_rate', 'acp_reservation_fee', 'acp_downpayment_rate',
+   'acp_downpayment_terms_months', 'acp_loanable_percentage', 'acp_vat_rate', 'acp_lmf_rate',
+   'acp_annual_interest_rate'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('input', _debouncedAcpPreview);
+  });
+  modalEl.addEventListener('show.bs.modal', function () {
+    _acpRefreshPreview();
+  });
+
   function _escapeHtml(str) {
     return String(str || '')
       .replace(/&/g, '&amp;')
@@ -6925,7 +7053,7 @@ var _pendingAcpFiles = [];
     var name = String(prop.name || 'Property');
     var status = 'available';
     var listingStatus = String(prop.listing_status || 'available').toLowerCase();
-    if (listingStatus !== 'sold') listingStatus = 'available';
+    if (listingStatus !== 'sold' && listingStatus !== 'reserved') listingStatus = 'available';
     var colStatus = listingStatus;
     var priceNum = Number(prop.price || 0);
     var priceText = priceNum ? ('₱' + priceNum.toLocaleString('en-PH', { maximumFractionDigits: 0 })) : '₱0';
@@ -6980,7 +7108,7 @@ var _pendingAcpFiles = [];
       + '  <div class="prop-card-body">'
       + '    <div class="prop-card-header">'
       + '      <div class="prop-card-name">' + _escapeHtml(name) + '</div>'
-      + '      <span class="sqh-badge ' + (listingStatus === 'sold' ? 'badge-not-qualified' : 'badge-qualified') + '">' + (listingStatus === 'sold' ? 'Sold' : 'Available') + '</span>'
+      + '      <span class="sqh-badge ' + (listingStatus === 'sold' ? 'badge-not-qualified' : (listingStatus === 'reserved' ? 'badge-conditional' : 'badge-qualified')) + '">' + (listingStatus === 'sold' ? 'Sold' : (listingStatus === 'reserved' ? 'Reserved' : 'Available')) + '</span>'
       + '    </div>'
       + '    <div class="prop-card-header">'
       + '      <div class="prop-card-loc"><i class="fas fa-map-marker-alt me-1"></i>' + _escapeHtml(location) + '</div>'
@@ -7050,6 +7178,12 @@ var _pendingAcpFiles = [];
 
   modalEl.addEventListener('hidden.bs.modal', function () {
     resetAcpFormState();
+    var warnEl = document.getElementById('acpPreviewWarn');
+    if (warnEl) warnEl.classList.add('d-none');
+    var emptyEl = document.getElementById('acpPreviewEmpty');
+    if (emptyEl) emptyEl.classList.remove('d-none');
+    var wrapEl = document.getElementById('acpPreviewWrap');
+    if (wrapEl) wrapEl.classList.add('d-none');
   });
 
   _bind('acp_street', 'input', _debouncedAcpBlockLotCheck);
@@ -7128,6 +7262,7 @@ var _pendingAcpFiles = [];
       fd.append('lot_area', val('acp_lot_area'));
       fd.append('subdivision_id', val('acp_subdivision'));
       fd.append('unit_id', val('acp_unit_id'));
+      fd.append('status', val('acp_status') || 'available');
       fd.append('description', val('acp_description'));
       _pendingAcpFiles.filter(Boolean).forEach(function (f) { fd.append('images', f); });
       fd.append('csrf_token', csrfToken());
@@ -7193,7 +7328,7 @@ var _pendingAcpFiles = [];
           subdivision_name: '',
           agent_name: '',
           approval_status: 'approved',
-          listing_status: 'available',
+          listing_status: val('acp_status') || 'available',
           created_at: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
           images: ''
         });

@@ -8,7 +8,7 @@ from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
 
 from .config import Config
-from .models import User, db
+from .models import User, UserProfile, db
 
 login_manager = LoginManager()
 csrf = CSRFProtect()
@@ -61,12 +61,43 @@ def _ensure_default_users(app: Flask) -> None:
 		db.session.add(user)
 		created += 1
 
-	if not created:
+	# Ensure the demo agent's contact profile is populated ("Ann Regar") so the
+	# client-side Conditional Requirements modal shows live contact buttons.
+	# Existing values are preserved so admin edits are never overwritten.
+	dirty = False
+	agent_user = User.query.filter_by(email="agent@smartqualihome.com").first()
+	if agent_user:
+		if agent_user.first_name == "Demo" and agent_user.last_name == "Agent":
+			agent_user.first_name = "Ann"
+			agent_user.last_name = "Regar"
+			dirty = True
+		agent_profile = agent_user.profile
+		if not agent_profile:
+			agent_profile = UserProfile(user_id=agent_user.id)
+			db.session.add(agent_profile)
+			dirty = True
+		agent_defaults = {
+			"license_no": "REBL-2026-0001",
+			"contact_no": "09171234567",
+			"social_instagram": "annregarrealty",
+			"social_viber": "09171234567",
+			"social_whatsapp": "09171234567",
+			"bio": "Licensed real estate broker at Annregar Realty & Development Corp.",
+		}
+		for field, value in agent_defaults.items():
+			if not getattr(agent_profile, field, None):
+				setattr(agent_profile, field, value)
+				dirty = True
+
+	if not created and not dirty:
 		return
 
 	try:
 		db.session.commit()
-		app.logger.info("Seeded %s default user account(s).", created)
+		if created:
+			app.logger.info("Seeded %s default user account(s).", created)
+		if dirty:
+			app.logger.info("Ensured demo agent (Ann Regar) contact profile.")
 	except Exception:
 		db.session.rollback()
 		app.logger.exception("Failed seeding default user accounts.")

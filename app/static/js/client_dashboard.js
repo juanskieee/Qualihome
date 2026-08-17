@@ -205,6 +205,7 @@
     if (filterValue === 'qualified_10') return '10';
     if (filterValue === 'qualified_15') return '15';
     if (filterValue === 'qualified_20') return '20';
+    if (filterValue === '5' || filterValue === '10' || filterValue === '15' || filterValue === '20') return filterValue;
     return '';
   }
 
@@ -822,22 +823,111 @@
         return _computeQualificationStatus(requiredIncome, clientIncome, fallbackQualified).badgeClass === 'badge-qualified';
       }
 
-      let visible = 0;
-      grid.querySelectorAll(".browse-card-col").forEach(function (col) {
+      function cardQualificationStatus(col, year, income) {
+        var req = 0;
+        var fallback = false;
+        if (year === '5') {
+          req = _toNumber(_datasetYearValue(col.dataset, 'propReqIncome', '5') || 0);
+          fallback = String(_datasetYearValue(col.dataset, 'propQualified', '5') || '0') === '1';
+        } else if (year === '10') {
+          req = _toNumber(_datasetYearValue(col.dataset, 'propReqIncome', '10') || 0);
+          fallback = String(_datasetYearValue(col.dataset, 'propQualified', '10') || '0') === '1';
+        } else if (year === '15') {
+          req = _toNumber(_datasetYearValue(col.dataset, 'propReqIncome', '15') || 0);
+          fallback = String(_datasetYearValue(col.dataset, 'propQualified', '15') || '0') === '1';
+        } else if (year === '20') {
+          req = _toNumber(_datasetYearValue(col.dataset, 'propReqIncome', '20') || 0);
+          fallback = String(_datasetYearValue(col.dataset, 'propQualified', '20') || '0') === '1';
+        }
+        return _computeQualificationStatus(req, income, fallback);
+      }
+
+      function baseMatches(col) {
         const name   = (col.dataset.propName || "").toLowerCase();
         const loc    = (col.dataset.propLoc  || "").toLowerCase();
         const ptype  = (col.dataset.propType || "").toLowerCase();
         const price  = parseFloat(col.dataset.propPrice || 0);
         const pbeds  = parseInt(col.dataset.propBeds || 0);
-
         const matchQ    = !q    || name.includes(q) || loc.includes(q);
         const matchType = !type || ptype === type;
         const matchBudget = price <= budget;
         const matchBeds = beds === 0 ? true : beds === 4 ? pbeds >= 4 : pbeds === beds;
+        return matchQ && matchType && matchBudget && matchBeds;
+      }
+
+      const browseSections = document.getElementById('browseSections');
+      const secQGrid  = document.getElementById('browseSecQualifiedGrid');
+      const secCGrid  = document.getElementById('browseSecConditionalGrid');
+      const secNGrid  = document.getElementById('browseSecNotQualifiedGrid');
+      const year = _selectedBrowseYear(qual);
+
+      if (year) {
+        // ── Year-split view: organize cards into 3 qualification sections ──
+        // First return any cards already in section grids back to the main grid.
+        [secQGrid, secCGrid, secNGrid].forEach(function (sec) {
+          if (!sec) return;
+          Array.prototype.forEach.call(sec.children, function (col) {
+            if (grid) grid.appendChild(col);
+          });
+        });
+        if (browseSections) browseSections.classList.remove('d-none');
+        if (grid) grid.classList.add('d-none');
+        if (secQGrid) secQGrid.innerHTML = '';
+        if (secCGrid) secCGrid.innerHTML = '';
+        if (secNGrid) secNGrid.innerHTML = '';
+
+        var qCount = 0, cCount = 0, nCount = 0;
+        grid.querySelectorAll(".browse-card-col").forEach(function (col) {
+          const show = baseMatches(col);
+          col.classList.toggle("d-none", !show);
+          if (!show) return;
+          var status = cardQualificationStatus(col, year, clientIncome);
+          updateCardQualificationBadge(col, qual, clientIncome);
+          if (status.badgeClass === 'badge-qualified') {
+            if (secQGrid) secQGrid.appendChild(col);
+            qCount++;
+          } else if (status.badgeClass === 'badge-conditional') {
+            if (secCGrid) secCGrid.appendChild(col);
+            cCount++;
+          } else {
+            if (secNGrid) secNGrid.appendChild(col);
+            nCount++;
+          }
+        });
+
+        var qSection = document.getElementById('browseSectionQualified');
+        var cSection = document.getElementById('browseSectionConditional');
+        var nSection = document.getElementById('browseSectionNotQualified');
+        if (qSection) qSection.classList.toggle('d-none', qCount === 0);
+        if (cSection) cSection.classList.toggle('d-none', cCount === 0);
+        if (nSection) nSection.classList.toggle('d-none', nCount === 0);
+        var qCountEl = document.getElementById('browseQualifiedCount');
+        var cCountEl = document.getElementById('browseConditionalCount');
+        var nCountEl = document.getElementById('browseNotQualifiedCount');
+        if (qCountEl) qCountEl.textContent = qCount;
+        if (cCountEl) cCountEl.textContent = cCount;
+        if (nCountEl) nCountEl.textContent = nCount;
+
+        if (noRes) noRes.classList.toggle("d-none", (qCount + cCount + nCount) > 0);
+        return;
+      }
+
+      // ── Flat view: return all cards to the main grid ──
+      if (browseSections) browseSections.classList.add('d-none');
+      if (grid) grid.classList.remove('d-none');
+      [secQGrid, secCGrid, secNGrid].forEach(function (sec) {
+        if (!sec) return;
+        Array.prototype.forEach.call(sec.children, function (col) {
+          if (grid) grid.appendChild(col);
+        });
+      });
+
+      let visible = 0;
+      grid.querySelectorAll(".browse-card-col").forEach(function (col) {
         const matchQual = matchQualification(col, qual);
         updateCardQualificationBadge(col, qual, clientIncome);
 
-        const show = matchQ && matchType && matchBudget && matchBeds && matchQual;
+        const show = baseMatches(col) && matchQual;
         col.classList.toggle("d-none", !show);
         if (show) visible++;
       });
@@ -854,6 +944,19 @@
     if (grossIncomeEl) {
       grossIncomeEl.addEventListener('input', applyFilters);
       grossIncomeEl.addEventListener('change', applyFilters);
+    }
+
+    // Re-run filters whenever the Browse page is shown so the card grid is
+    // restored after year-split view rearranges the DOM.
+    if (typeof window.showPage === 'function') {
+      var _origBrowseShowPage = window.showPage;
+      window.showPage = function (pageId) {
+        var res = _origBrowseShowPage(pageId);
+        if (String(pageId || '').toLowerCase() === 'browse') {
+          setTimeout(applyFilters, 0);
+        }
+        return res;
+      };
     }
 
     applyFilters();
@@ -2629,8 +2732,78 @@
 
     renderPricingBreakdown(effectiveDetailStatus, pricingData);
 
+    // ── Qualification by selected loan year ──
+    var qualWrap = document.getElementById('pvmQualWrap');
+    var qualYearSel = document.getElementById('pvmQualYearSelect');
+    var qualBadge = document.getElementById('pvmQualStatusBadge');
+    var condBtn = document.getElementById('pvmConditionalBtn');
+    var agentContact = null;
+    try {
+      agentContact = card.dataset.agentContact ? JSON.parse(card.dataset.agentContact) : null;
+    } catch (_) {
+      agentContact = null;
+    }
+
+    function updatePvmQualification() {
+      if (!qualWrap || !qualYearSel || !qualBadge) return;
+      var clientIncome = _getClientMonthlyIncome();
+      if (!pricingData || !pricingData.required_monthly_income || clientIncome <= 0) {
+        qualWrap.classList.add('d-none');
+        return;
+      }
+      var year = qualYearSel.value;
+      var req = _toNumber((pricingData.required_monthly_income[year] || 0));
+      var status = _computeQualificationStatus(req, clientIncome, false);
+      _setBadgeStatus(qualBadge, status);
+      if (condBtn) condBtn.classList.toggle('d-none', status.badgeClass !== 'badge-conditional');
+      qualWrap.classList.remove('d-none');
+    }
+    if (qualYearSel) qualYearSel.onchange = updatePvmQualification;
+    if (condBtn) {
+      condBtn.onclick = function () {
+        openConditionalRequirements(agentContact);
+      };
+    }
+    updatePvmQualification();
+
     bootstrap.Modal.getOrCreateInstance(modal).show();
     setTimeout(_applyDarkModalBackdrops, 0);
+  }
+
+  function openConditionalRequirements(agentContact) {
+    var modalEl = document.getElementById('conditionalReqModal');
+    if (!modalEl) return;
+    var ac = (agentContact && typeof agentContact === 'object') ? agentContact : {};
+    var phone = String(ac.phone || '').trim();
+    var insta = String(ac.instagram || '').trim();
+    var viber = String(ac.viber || '').trim();
+    var whats = String(ac.whatsapp || '').trim();
+    var agentName = String(ac.name || 'Ann Regar').trim();
+
+    var nameEl = modalEl.querySelector('#crAgentName');
+    if (nameEl) nameEl.textContent = agentName;
+
+    function setLink(id, href) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.href = href;
+      var has = !!href && href !== '#';
+      el.classList.toggle('d-none', !has);
+    }
+    function digits(v) { return String(v || '').replace(/\D/g, ''); }
+    var intl = function (v) {
+      var d = digits(v);
+      if (d.length >= 12) return '63' + d.slice(-10);
+      if (d.length === 11 && d.charAt(0) === '0') return '63' + d.slice(1);
+      return '63' + d;
+    };
+    setLink('crFacebookBtn', '#');
+    setLink('crInstagramBtn', insta ? 'https://www.instagram.com/' + String(insta).replace(/^@/, '') : '#');
+    setLink('crViberBtn', viber ? 'viber://chat?number=%2B' + intl(viber) : '#');
+    setLink('crWhatsAppBtn', whats ? 'https://wa.me/' + intl(whats) : '#');
+    setLink('crPhoneBtn', phone ? 'tel:+' + intl(phone) : '#');
+
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
   }
 
   function _bvmShowSlide(idx) {
