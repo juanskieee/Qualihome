@@ -19,6 +19,11 @@ _AUTO_SYNC_NOTE_RE = re.compile(r"AUTO_SYNC_SALE_ID=(\d+)")
 _C50_RETRAIN_LOCK = Lock()
 
 
+@main_bp.route("/health", methods=["GET"])
+def health():
+    return {"status": "ok"}, 200
+
+
 def _normalize_outcome_label(value: str | None) -> str:
     raw = (value or "").strip().lower()
     if raw in {"qualified"}:
