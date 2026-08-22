@@ -53,6 +53,15 @@ class Config:
     UPLOAD_FOLDER = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "instance", "uploads")
     MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10 MB
 
+    # Cloudinary (persistent image storage — Render's disk is ephemeral).
+    # When all three credentials are present, uploads go to Cloudinary and
+    # absolute URLs are stored in the DB; otherwise the local uploads folder
+    # is used (local development).
+    CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
+    CLOUDINARY_API_KEY    = os.environ.get("CLOUDINARY_API_KEY", "")
+    CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET", "")
+    CLOUDINARY_FOLDER     = os.environ.get("CLOUDINARY_FOLDER", "qualihome")
+
     # Session cookie security
     _IS_PRODUCTION = os.environ.get("FLASK_ENV", "development").lower() == "production"
 

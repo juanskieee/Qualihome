@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}My Home  QUALIHOME{% endblock %}
 {% block body_class %}page-client-portal{% endblock %}
 {% block footer %}{% endblock %}
@@ -2606,7 +2606,7 @@
                data-agent-contact="{{ agent_contact_map.get(p.id, {})|tojson|forceescape }}">
             <div class="prop-card-img-wrap">
               {% if first_img %}
-              <img src="{{ url_for('main.serve_upload', filename=first_img) }}" alt="{{ p.name }}" class="prop-card-img" loading="lazy">
+              <img src="{{ first_img | img_src }}" alt="{{ p.name }}" class="prop-card-img" loading="lazy">
               {% else %}
               <div class="prop-card-img-placeholder"><i class="fas fa-home"></i></div>
               {% endif %}
@@ -2714,7 +2714,7 @@
                data-agent-contact="{{ agent_contact_map.get(p.id, {})|tojson|forceescape }}">
             <div class="prop-card-img-wrap">
               {% if first_img %}
-              <img src="{{ url_for('main.serve_upload', filename=first_img) }}" alt="{{ p.name }}" class="prop-card-img" loading="lazy">
+              <img src="{{ first_img | img_src }}" alt="{{ p.name }}" class="prop-card-img" loading="lazy">
               {% else %}
               <div class="prop-card-img-placeholder"><i class="fas fa-home"></i></div>
               {% endif %}
@@ -2833,7 +2833,7 @@
           <div class="prop-card prop-card-clickable cp-trip-card cp-trip-card--full cp-trip-card--recent-home cp-trip-card--home-clickable" data-trip-id="{{ t.id }}" data-trip-card="1" role="button" tabindex="0" aria-label="Preview this trip request">
             <div class="prop-card-img-wrap cp-trip-card-img">
               {% if t_first_img %}
-              <img src="{{ url_for('main.serve_upload', filename=t_first_img) }}" alt="{{ t.property_item.name }}" class="prop-card-img" loading="lazy">
+              <img src="{{ t_first_img | img_src }}" alt="{{ t.property_item.name }}" class="prop-card-img" loading="lazy">
               {% else %}
               <div class="cp-trip-card-img-placeholder"><i class="fas fa-home"></i></div>
               {% endif %}
@@ -3048,7 +3048,7 @@
                data-agent-contact="{{ agent_contact_map.get(p.id, {})|tojson|forceescape }}">
             <div class="prop-card-img-wrap">
               {% if first_img %}
-              <img src="{{ url_for('main.serve_upload', filename=first_img) }}" alt="{{ p.name }}" class="prop-card-img" loading="lazy">
+              <img src="{{ first_img | img_src }}" alt="{{ p.name }}" class="prop-card-img" loading="lazy">
               {% else %}
               <div class="prop-card-img-placeholder"><i class="fas fa-home"></i></div>
               {% endif %}
@@ -3193,7 +3193,7 @@
                role="button" tabindex="0" aria-label="Preview this trip request">
             <div class="cp-trip-card-img">
               {% if t_first_img %}
-              <img src="{{ url_for('main.serve_upload', filename=t_first_img) }}" alt="{{ t.property_item.name }}" class="prop-card-img" loading="lazy">
+              <img src="{{ t_first_img | img_src }}" alt="{{ t.property_item.name }}" class="prop-card-img" loading="lazy">
               {% else %}
               <div class="cp-trip-card-img-placeholder"><i class="fas fa-home"></i></div>
               {% endif %}
@@ -3340,7 +3340,7 @@
                data-pricing-json="{{ pricing|tojson|forceescape }}">
             <div class="prop-card-img-wrap">
               {% if bp_first_img %}
-              <img src="{{ url_for('main.serve_upload', filename=bp_first_img) }}" alt="{{ bp.name if bp else 'Property' }}" class="prop-card-img" loading="lazy">
+              <img src="{{ bp_first_img | img_src }}" alt="{{ bp.name if bp else 'Property' }}" class="prop-card-img" loading="lazy">
               {% else %}
               <div class="prop-card-img-placeholder"><i class="fas fa-home"></i></div>
               {% endif %}

@@ -64,6 +64,15 @@ function showToast(message, type, title) {
   }
 }
 
+// ── Image source resolution (Cloudinary-aware) ──────────────────
+// Absolute URLs (Cloudinary) are used directly; legacy local
+// filenames are served through /uploads/.
+function sqhImgSrc(ref) {
+  ref = String(ref == null ? '' : ref).trim();
+  if (/^https?:\/\//i.test(ref)) return ref;
+  return '/uploads/' + encodeURIComponent(ref);
+}
+
 // ── Numeric input formatting (thousands separators) ──────────────
 function sqhCleanNumeric(str) {
   return String(str == null ? '' : str).replace(/[,\s\u20B1]/g, '');

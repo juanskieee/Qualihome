@@ -2249,7 +2249,7 @@
     _tripPreviewIdx = (idx + _tripPreviewImages.length) % _tripPreviewImages.length;
     imgEl.style.opacity = '0';
     setTimeout(function() {
-      imgEl.src = '/uploads/' + _tripPreviewImages[_tripPreviewIdx];
+      imgEl.src = sqhImgSrc(_tripPreviewImages[_tripPreviewIdx]);
       imgEl.style.opacity = '1';
     }, 120);
     document.querySelectorAll('#tripPreviewDots .sub-preview-dot').forEach(function(dot, dotIdx) {
@@ -2358,7 +2358,7 @@
     if (_tripPreviewImages.length) {
       imgWrap.style.display = 'block';
       placeholder.style.display = 'none';
-      imgEl.src = '/uploads/' + _tripPreviewImages[0];
+      imgEl.src = sqhImgSrc(_tripPreviewImages[0]);
       imgEl.style.opacity = '1';
       _tripPreviewIdx = 0;
       if (_tripPreviewImages.length > 1) {
@@ -2419,7 +2419,7 @@
     _pvmIdx = (idx + _pvmImages.length) % _pvmImages.length;
     imgEl.style.opacity = '0';
     setTimeout(function() {
-      imgEl.src = '/uploads/' + _pvmImages[_pvmIdx];
+      imgEl.src = sqhImgSrc(_pvmImages[_pvmIdx]);
       imgEl.style.opacity = '1';
     }, 120);
     document.querySelectorAll('#pvmDots .sub-preview-dot').forEach(function(d, i) {
@@ -2628,7 +2628,7 @@
       imgWrap.style.display   = 'block';
       imgHolder.style.display = 'none';
       imgEl.style.opacity     = '1';
-      imgEl.src = '/uploads/' + _pvmImages[0];
+      imgEl.src = sqhImgSrc(_pvmImages[0]);
       _pvmIdx = 0;
       if (_pvmImages.length > 1) {
         prevBtn.classList.remove('d-none');
@@ -2812,7 +2812,7 @@
     _bvmIdx = (idx + _bvmImages.length) % _bvmImages.length;
     imgEl.style.opacity = '0';
     setTimeout(function() {
-      imgEl.src = '/uploads/' + _bvmImages[_bvmIdx];
+      imgEl.src = sqhImgSrc(_bvmImages[_bvmIdx]);
       imgEl.style.opacity = '1';
     }, 120);
     document.querySelectorAll('#bvmDots .sub-preview-dot').forEach(function(d, i) {
@@ -2942,7 +2942,7 @@
     const banner = document.getElementById("tripModalPropBanner");
     if (banner) {
       if (imgs.length > 0) {
-        banner.style.backgroundImage = `url('/uploads/${imgs[0]}')`;
+        banner.style.backgroundImage = `url(${sqhImgSrc(imgs[0])})`;
         banner.style.backgroundSize  = 'cover';
         banner.style.backgroundPosition = 'center';
         banner.querySelector('.cd-prop-banner-placeholder').style.display = 'none';

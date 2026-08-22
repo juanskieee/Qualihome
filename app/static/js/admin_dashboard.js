@@ -1240,7 +1240,7 @@ function _buildSubCard(subId, name, loc, desc, imageIds, propCount, locMeta, pro
     ? '<span class="prop-card-img-count"><i class="fas fa-images me-1"></i>' + imageIds.length + '</span>'
     : '';
   var imgHtml = imageIds.length
-    ? '<img src="/admin/subdivision-image/' + encodeURIComponent(imageIds[0]) + '" alt="' + _escAttr(name) + '" class="sub-card-img">'
+    ? '<img src="' + sqhImgSrc(imageIds[0]) + '" alt="' + _escAttr(name) + '" class="sub-card-img">'
     : '<div class="sub-card-img-placeholder"><i class="fas fa-city"></i></div>';
   col.innerHTML =
     '<div class="sub-card"' +
@@ -1307,7 +1307,7 @@ function _buildProjectCard(p) {
   var imgIds = Array.isArray(p.image_ids) ? p.image_ids : [];
   var subCount = parseInt(p.subdivisions || 0, 10) || 0;
   var imgHtml = imgIds.length
-    ? '<img src="/admin/subdivision-image/' + encodeURIComponent(imgIds[0]) + '" alt="' + _escAttr(name) + '" class="sub-card-img">'
+    ? '<img src="' + sqhImgSrc(imgIds[0]) + '" alt="' + _escAttr(name) + '" class="sub-card-img">'
     : '<div class="sub-card-img-placeholder"><i class="fas fa-building"></i></div>';
   var imgCountHtml = imgIds.length > 1
     ? '<span class="prop-card-img-count"><i class="fas fa-images me-1"></i>' + imgIds.length + '</span>'
@@ -1762,7 +1762,7 @@ function _openProjectEditModal(projectId) {
         (data.image_ids || []).forEach(function(imgId) {
           var tile = document.createElement('div');
           tile.className = 'sub-img-tile';
-          tile.innerHTML = '<img src="/admin/subdivision-image/' + encodeURIComponent(imgId) + '" class="sub-img-tile-img" alt="">';
+          tile.innerHTML = '<img src="' + sqhImgSrc(imgId) + '" class="sub-img-tile-img" alt="">';
           wrap.appendChild(tile);
         });
       }
@@ -1868,7 +1868,7 @@ _bind('addProjectSubmitBtn', 'click', function() {
           if (wrapEl2) {
             var actions2 = wrapEl2.querySelector('.sub-card-actions');
             var newImgHtml = imgIds.length
-              ? '<img src="/admin/subdivision-image/' + encodeURIComponent(imgIds[0]) + '" alt="' + _escAttr(res.data.name || '') + '" class="sub-card-img">'
+              ? '<img src="' + sqhImgSrc(imgIds[0]) + '" alt="' + _escAttr(res.data.name || '') + '" class="sub-card-img">'
               : '<div class="sub-card-img-placeholder"><i class="fas fa-building"></i></div>';
             var newCountHtml = imgIds.length > 1
               ? '<span class="prop-card-img-count"><i class="fas fa-images me-1"></i>' + imgIds.length + '</span>'
@@ -2157,7 +2157,7 @@ document.addEventListener('click', function(e) {
       tile.className = 'sub-img-tile';
       tile.dataset.imgId = imgId;
       tile.innerHTML =
-        '<img src="/admin/subdivision-image/' + encodeURIComponent(imgId) + '" class="sub-img-tile-img" alt="">' +
+        '<img src="' + sqhImgSrc(imgId) + '" class="sub-img-tile-img" alt="">' +
         '<button type="button" class="sub-img-tile-del" data-img-id="' + imgId + '" title="Remove">' +
           '<i class="fas fa-times"></i>' +
         '</button>';
@@ -2391,12 +2391,12 @@ _bind('editSubSubmitBtn', 'click', function() {
         if (imageIds.length) {
           var existImg = imgWrap.querySelector('.sub-card-img');
           if (existImg) {
-            existImg.src = '/admin/subdivision-image/' + encodeURIComponent(imageIds[0]);
+            existImg.src = sqhImgSrc(imageIds[0]);
           } else {
             var ph = imgWrap.querySelector('.sub-card-img-placeholder');
             if (ph) ph.remove();
             var newImg = document.createElement('img');
-            newImg.src = '/admin/subdivision-image/' + encodeURIComponent(imageIds[0]);
+            newImg.src = sqhImgSrc(imageIds[0]);
             newImg.alt = _savedName;
             newImg.className = 'sub-card-img';
             imgWrap.insertBefore(newImg, imgWrap.firstChild);
@@ -2447,7 +2447,7 @@ function _showPreviewSlide(idx) {
     placeholder.style.setProperty('display', 'none', 'important');
     // Fade out → swap src → fade in
     imgEl.style.opacity = '0';
-    var newSrc = '/admin/subdivision-image/' + encodeURIComponent(_previewImages[idx]);
+    var newSrc = sqhImgSrc(_previewImages[idx]);
     imgEl.onload = function() { imgEl.style.opacity = '1'; };
     imgEl.src = newSrc;
     // If browser serves from cache, onload may already have fired
@@ -2551,7 +2551,7 @@ function _showProjectPreviewSlide(idx) {
     imgWrap.style.display = 'block';
     placeholder.style.setProperty('display', 'none', 'important');
     imgEl.style.opacity = '0';
-    var newSrc = '/admin/subdivision-image/' + encodeURIComponent(_projectPreviewImages[idx]);
+    var newSrc = sqhImgSrc(_projectPreviewImages[idx]);
     imgEl.onload = function() { imgEl.style.opacity = '1'; };
     imgEl.src = newSrc;
     if (imgEl.complete) imgEl.style.opacity = '1';
@@ -3840,7 +3840,7 @@ function _openAdminEditPropertyModal(d) {
   if (_lemImages.length) {
     wrap.style.display = 'block';
     holder.style.display = 'none';
-    img.src = '/uploads/' + _lemImages[0];
+    img.src = sqhImgSrc(_lemImages[0]);
     img.style.opacity = '1';
     if (_lemImages.length > 1) {
       prev.classList.remove('d-none');
@@ -6195,7 +6195,7 @@ var _adminPreviewType = null; // 'avatar' or 'banner'
     var dotsEl = document.getElementById('adminTrmDots');
     if (!imgEl) return;
 
-    imgEl.src = '/uploads/' + _adminTrmImages[_adminTrmIdx];
+    imgEl.src = sqhImgSrc(_adminTrmImages[_adminTrmIdx]);
     if (dotsEl) {
       dotsEl.querySelectorAll('.trm-dot').forEach(function (dot, i) {
         dot.classList.toggle('active', i === _adminTrmIdx);

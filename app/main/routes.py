@@ -210,7 +210,32 @@ SUBDIVISIONS = [
 ]
 
 
-def _save_subdivision_image_file(file_obj):
+def _cloudinary_enabled() -> bool:
+    return bool(
+        current_app.config.get("CLOUDINARY_CLOUD_NAME")
+        and current_app.config.get("CLOUDINARY_API_KEY")
+        and current_app.config.get("CLOUDINARY_API_SECRET")
+    )
+
+
+def _store_image_file(file_obj) -> str:
+    """Persist an uploaded image.
+
+    Returns an absolute Cloudinary URL when Cloudinary is configured,
+    otherwise saves to the local uploads folder and returns the filename.
+    The returned reference is stored in the DB as-is.
+    """
+    if _cloudinary_enabled():
+        import cloudinary.uploader
+        result = cloudinary.uploader.upload(
+            file_obj,
+            folder=current_app.config.get("CLOUDINARY_FOLDER", "qualihome"),
+        )
+        return result["secure_url"]
+    return _save_local_image_file(file_obj)
+
+
+def _save_local_image_file(file_obj):
     upload_dir = current_app.config["UPLOAD_FOLDER"]
     os.makedirs(upload_dir, exist_ok=True)
     original = secure_filename(file_obj.filename or "")
@@ -228,6 +253,39 @@ def _save_subdivision_image_file(file_obj):
     filename = f"sub_{uuid.uuid4().hex}{ext}"
     file_obj.save(os.path.join(upload_dir, filename))
     return filename
+
+
+def _is_remote_image_ref(ref) -> bool:
+    ref = (ref or "").strip()
+    return ref.startswith("http://") or ref.startswith("https://")
+
+
+def _delete_stored_image(ref) -> None:
+    """Delete a stored image reference: Cloudinary asset or legacy local file."""
+    ref = (ref or "").strip()
+    if not ref:
+        return
+    if _is_remote_image_ref(ref):
+        if "res.cloudinary.com" in ref and _cloudinary_enabled():
+            try:
+                import cloudinary.uploader
+                m = re.search(r"/upload/(?:v\d+/)?(.+?)\.[A-Za-z0-9]+$", ref)
+                if m:
+                    cloudinary.uploader.destroy(m.group(1))
+            except Exception:
+                current_app.logger.exception("Cloudinary destroy failed for %s", ref)
+        return
+    upload_dir = current_app.config["UPLOAD_FOLDER"]
+    fpath = os.path.join(upload_dir, os.path.basename(ref))
+    if os.path.exists(fpath):
+        try:
+            os.remove(fpath)
+        except OSError:
+            pass
+
+
+def _save_subdivision_image_file(file_obj):
+    return _store_image_file(file_obj)
 
 
 def _subdivision_images_to_list(subdivision):
@@ -1733,13 +1791,8 @@ def admin_delete_property(prop_id):
     if (prop.status or "").lower() == "sold":
         return jsonify({"error": "Sold properties cannot be deleted to preserve sales history."}), 409
     try:
-        upload_dir = current_app.config["UPLOAD_FOLDER"]
         for fname in (prop.images or "").split(","):
-            fname = fname.strip()
-            if fname:
-                fpath = os.path.join(upload_dir, fname)
-                if os.path.exists(fpath):
-                    os.remove(fpath)
+            _delete_stored_image(fname)
 
         prop_name = prop.name
 
@@ -1863,17 +1916,8 @@ def admin_delete_project(project_id):
     if project.subdivisions:
         return jsonify({"error": "Cannot delete project with subdivisions assigned."}), 400
 
-    upload_dir = current_app.config["UPLOAD_FOLDER"]
     for fname in list(project.images or []):
-        clean_name = os.path.basename((fname or "").strip())
-        if not clean_name:
-            continue
-        fpath = os.path.join(upload_dir, clean_name)
-        if os.path.exists(fpath):
-            try:
-                os.remove(fpath)
-            except OSError:
-                pass
+        _delete_stored_image(fname)
 
     project_name = project.name
     db.session.delete(project)
@@ -1950,17 +1994,8 @@ def admin_edit_project(project_id):
     current_images = list(project.images or [])
     if remove_ids:
         current_images = [img for img in current_images if img not in remove_ids]
-        upload_dir = current_app.config["UPLOAD_FOLDER"]
         for image_key in remove_ids:
-            clean_name = os.path.basename((image_key or "").strip())
-            if not clean_name:
-                continue
-            fpath = os.path.join(upload_dir, clean_name)
-            if os.path.exists(fpath):
-                try:
-                    os.remove(fpath)
-                except OSError:
-                    pass
+            _delete_stored_image(image_key)
 
     files = request.files.getlist("image_files")
     for f in files:
@@ -2081,6 +2116,8 @@ def admin_create_subdivision():
 
 @main_bp.route("/admin/subdivision-image/<path:image_key>")
 def serve_subdivision_image(image_key):
+    if _is_remote_image_ref(image_key):
+        return redirect(image_key)
     upload_dir = current_app.config["UPLOAD_FOLDER"]
     clean_key = os.path.basename((image_key or "").strip())
     if not clean_key:
@@ -2102,25 +2139,19 @@ def subdivision_image(sub_id):
 def delete_subdivision_image(image_key):
     if current_user.role != "admin":
         return jsonify({"error": "Forbidden"}), 403
-    clean_key = os.path.basename((image_key or "").strip())
-    if not clean_key:
+    image_key = (image_key or "").strip()
+    if not image_key:
         return jsonify({"error": "Not found"}), 404
 
     found = False
     for sub in Subdivision.query.all():
         imgs = _subdivision_images_to_list(sub)
-        if clean_key in imgs:
-            imgs = [name for name in imgs if name != clean_key]
+        if image_key in imgs:
+            imgs = [name for name in imgs if name != image_key]
             _set_subdivision_images(sub, imgs)
             found = True
 
-    upload_dir = current_app.config["UPLOAD_FOLDER"]
-    img_path = os.path.join(upload_dir, clean_key)
-    if os.path.exists(img_path):
-        try:
-            os.remove(img_path)
-        except OSError:
-            pass
+    _delete_stored_image(image_key)
 
     if not found:
         return jsonify({"error": "Not found"}), 404
@@ -2131,6 +2162,8 @@ def delete_subdivision_image(image_key):
 
 @main_bp.route("/uploads/<path:filename>")
 def serve_upload(filename):
+    if _is_remote_image_ref(filename):
+        return redirect(filename)
     upload_dir = current_app.config["UPLOAD_FOLDER"]
     return send_from_directory(upload_dir, filename)
 
@@ -2241,14 +2274,8 @@ def admin_delete_subdivision(sub_id):
         return jsonify({"error": "Not found"}), 404
     if sub.properties:
         return jsonify({"error": "Cannot delete — project has properties assigned."}), 400
-    upload_dir = current_app.config["UPLOAD_FOLDER"]
     for fname in _subdivision_images_to_list(sub):
-        fpath = os.path.join(upload_dir, fname)
-        if os.path.exists(fpath):
-            try:
-                os.remove(fpath)
-            except OSError:
-                pass
+        _delete_stored_image(fname)
     sub_name = sub.name
     db.session.delete(sub)
     log_activity("sub_delete", f"Subdivision deleted: {sub_name}")
@@ -2868,18 +2895,15 @@ ALLOWED_IMG_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 
 
 def _save_property_images(files):
-    """Save uploaded image files; return list of saved filenames."""
-    upload_dir = current_app.config["UPLOAD_FOLDER"]
-    os.makedirs(upload_dir, exist_ok=True)
+    """Persist uploaded property images; return list of stored references."""
     saved = []
     for f in files:
         if f and f.filename:
             ext = os.path.splitext(secure_filename(f.filename))[1].lower()
             if ext not in ALLOWED_IMG_EXTS:
                 continue
-            fname = str(uuid.uuid4()) + ext
-            f.save(os.path.join(upload_dir, fname))
-            saved.append(fname)
+            f.stream.seek(0)
+            saved.append(_store_image_file(f))
     return saved
 
 
@@ -3328,15 +3352,12 @@ def agent_edit_property(prop_id):
         prop.unit_id = _generate_property_unit_id(prop.id)
 
     # Handle image removals
-    upload_dir = current_app.config["UPLOAD_FOLDER"]
     existing   = [x for x in (prop.images or "").split(",") if x]
     for fname in request.form.getlist("remove_images"):
         fname = fname.strip()
         if fname in existing:
             existing.remove(fname)
-            fpath = os.path.join(upload_dir, fname)
-            if os.path.exists(fpath):
-                os.remove(fpath)
+            _delete_stored_image(fname)
 
     new_names  = _save_property_images(request.files.getlist("images"))
     existing.extend(new_names)
@@ -3359,14 +3380,9 @@ def agent_delete_property(prop_id):
         return jsonify({"error": "Not found"}), 404
     if (prop.status or "").lower() == "sold":
         return jsonify({"error": "Sold properties cannot be deleted to preserve sales history."}), 409
-    # Remove image files from disk
-    upload_dir = current_app.config["UPLOAD_FOLDER"]
+    # Remove stored images (Cloudinary or legacy local files)
     for fname in (prop.images or "").split(","):
-        fname = fname.strip()
-        if fname:
-            fpath = os.path.join(upload_dir, fname)
-            if os.path.exists(fpath):
-                os.remove(fpath)
+        _delete_stored_image(fname)
 
     prop_name = prop.name
     db.session.delete(prop)

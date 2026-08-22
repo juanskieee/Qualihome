@@ -111,6 +111,22 @@ def create_app(config_class=Config):
 	os.makedirs(app.instance_path, exist_ok=True)
 	os.makedirs(app.config.get("UPLOAD_FOLDER", os.path.join(app.instance_path, "uploads")), exist_ok=True)
 
+	# Configure Cloudinary when credentials are provided (production/Render).
+	# Without them the app falls back to the local uploads folder.
+	if (
+		app.config.get("CLOUDINARY_CLOUD_NAME")
+		and app.config.get("CLOUDINARY_API_KEY")
+		and app.config.get("CLOUDINARY_API_SECRET")
+	):
+		import cloudinary
+		cloudinary.config(
+			cloud_name=app.config["CLOUDINARY_CLOUD_NAME"],
+			api_key=app.config["CLOUDINARY_API_KEY"],
+			api_secret=app.config["CLOUDINARY_API_SECRET"],
+			secure=True,
+		)
+		app.logger.info("Cloudinary configured (cloud=%s).", app.config["CLOUDINARY_CLOUD_NAME"])
+
 	db.init_app(app)
 	login_manager.init_app(app)
 	csrf.init_app(app)
@@ -124,6 +140,20 @@ def create_app(config_class=Config):
 			return db.session.get(User, int(user_id))
 		except Exception:
 			return None
+
+	@app.template_filter("img_src")
+	def img_src_filter(ref):
+		"""Resolve a stored image reference to a browser-ready src.
+
+		Absolute Cloudinary URLs are emitted directly; legacy local
+		filenames are served through /uploads/<filename>.
+		"""
+		ref = (ref or "").strip()
+		if ref.startswith(("http://", "https://")):
+			return ref
+		if not ref:
+			return ""
+		return "/uploads/" + ref
 
 	@app.template_filter("ph_datetime")
 	def ph_datetime_filter(value, fmt="%b %d, %Y %I:%M %p"):

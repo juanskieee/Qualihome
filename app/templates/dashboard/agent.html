@@ -1412,7 +1412,7 @@
                  data-pricing-json="{{ agent_property_pricing_map.get(p.id, {})|tojson|forceescape }}">
               <div class="prop-card-img-wrap">
                 {% if first_img %}
-                <img src="/uploads/{{ first_img }}" alt="{{ p.name }}" class="prop-card-img">
+                <img src="{{ first_img | img_src }}" alt="{{ p.name }}" class="prop-card-img">
                 {% else %}
                 <div class="prop-card-img-placeholder"><i class="fas fa-home"></i></div>
                 {% endif %}
@@ -1547,7 +1547,7 @@
                  data-images="{{ p.images or '' }}">
               <div class="prop-card-img-wrap">
                 {% if first_img %}
-                <img src="/uploads/{{ first_img }}" alt="{{ p.name }}" class="prop-card-img">
+                <img src="{{ first_img | img_src }}" alt="{{ p.name }}" class="prop-card-img">
                 {% else %}
                 <div class="prop-card-img-placeholder"><i class="fas fa-home"></i></div>
                 {% endif %}

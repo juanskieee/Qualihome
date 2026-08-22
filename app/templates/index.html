@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% block title %}QUALIHOME | Annregar Realty{% endblock %}
 
 {% block content %}
@@ -234,7 +234,7 @@ QUALIHOME is Annregar Realty’s official pre-qualification platform. Powered by
              aria-label="View model details for {{ p.name|e }}">
           <div class="prop-card-img-wrap">
             {% if p.images %}
-              <img src="/uploads/{{ first_img }}" alt="{{ p.name }}" class="prop-card-img">
+              <img src="{{ first_img | img_src }}" alt="{{ p.name }}" class="prop-card-img">
             {% else %}
               <div class="prop-card-img-placeholder"><i class="fas fa-home"></i></div>
             {% endif %}
@@ -1041,6 +1041,7 @@ QUALIHOME is Annregar Realty’s official pre-qualification platform. Powered by
 
     let lpImages = [];
     let lpIndex = 0;
+    const lpImgSrc = (ref) => (/^https?:\/\//.test(ref || '') ? ref : '/uploads/' + ref);
 
     const modalEl = document.getElementById('lpPropDetailModal');
     if (!modalEl || typeof bootstrap === 'undefined') return;
@@ -1172,7 +1173,7 @@ QUALIHOME is Annregar Realty’s official pre-qualification platform. Powered by
       lpIndex = (idx + lpImages.length) % lpImages.length;
       imgEl.style.opacity = '0';
       setTimeout(function() {
-        imgEl.src = '/uploads/' + lpImages[lpIndex];
+        imgEl.src = lpImgSrc(lpImages[lpIndex]);
         imgEl.style.opacity = '1';
       }, 120);
       dotsEl.querySelectorAll('.sub-preview-dot').forEach(function(dot, dotIdx) {
@@ -1240,7 +1241,7 @@ QUALIHOME is Annregar Realty’s official pre-qualification platform. Powered by
       if (lpImages.length) {
         imgWrap.style.display = 'block';
         imgPlaceholder.style.display = 'none';
-        imgEl.src = '/uploads/' + lpImages[0];
+        imgEl.src = lpImgSrc(lpImages[0]);
         imgEl.style.opacity = '1';
         lpIndex = 0;
         if (lpImages.length > 1) {

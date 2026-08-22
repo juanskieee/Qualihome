@@ -468,7 +468,7 @@ function _lemShowSlide(idx) {
   if (!imgEl) return;
   imgEl.style.opacity = '0';
   setTimeout(function () {
-    imgEl.src = '/uploads/' + _lemImages[_lemIdx];
+    imgEl.src = sqhImgSrc(_lemImages[_lemIdx]);
     imgEl.style.opacity = '1';
   }, 120);
   document.querySelectorAll('#lemDots .sub-preview-dot').forEach(function (d, i) {
@@ -645,7 +645,7 @@ function openEditPropertyModal(propId) {
     var tile = document.createElement('div');
     tile.className = 'sub-img-tile';
     tile.innerHTML =
-      '<img src="/uploads/' + fname + '" class="sub-img-tile-img" alt="">' +
+      '<img src="' + sqhImgSrc(fname) + '" class="sub-img-tile-img" alt="">' +
       '<button type="button" class="sub-img-tile-del" data-fname="' + fname + '" title="Remove"><i class="fas fa-times"></i></button>' +
       '<input type="hidden" name="existing_img" value="' + fname + '">';
     imgWrap.appendChild(tile);
@@ -663,7 +663,7 @@ function openEditPropertyModal(propId) {
   if (_lemImages.length) {
     if (lemImgWrap)    { lemImgWrap.style.display = 'block'; }
     if (lemPlaceholder){ lemPlaceholder.style.display = 'none'; }
-    if (lemImgEl)      { lemImgEl.src = '/uploads/' + _lemImages[0]; lemImgEl.style.opacity = '1'; }
+    if (lemImgEl)      { lemImgEl.src = sqhImgSrc(_lemImages[0]); lemImgEl.style.opacity = '1'; }
     if (_lemImages.length > 1) {
       if (lemPrevBtn) lemPrevBtn.classList.remove('d-none');
       if (lemNextBtn) lemNextBtn.classList.remove('d-none');
@@ -979,7 +979,7 @@ function _applyEditedPropertyCard(propId, model) {
     var firstNew = (model.newFiles || [])[0] || null;
     var imgEl = imgWrap.querySelector('.prop-card-img');
     var phEl = imgWrap.querySelector('.prop-card-img-placeholder');
-    var nextSrc = firstExisting ? ('/uploads/' + firstExisting) : (firstNew ? URL.createObjectURL(firstNew) : '');
+    var nextSrc = firstExisting ? sqhImgSrc(firstExisting) : (firstNew ? URL.createObjectURL(firstNew) : '');
     if (nextSrc) {
       if (!imgEl) {
         imgEl = document.createElement('img');
@@ -1765,7 +1765,7 @@ function _trmRenderImage() {
     return;
   }
 
-  imgEl.src = '/uploads/' + src;
+  imgEl.src = sqhImgSrc(src);
   imgEl.classList.remove('d-none');
   placeholderEl.classList.add('d-none');
 }
