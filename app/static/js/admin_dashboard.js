@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   hardenAddressAutofill([
     'subSiteNotes', 'editSubSiteNotes', 'sp_site_notes', 'ep_site_notes',
-    'ep_street', 'ep_block', 'ep_lot_no',
+    'ep_full_address',
     'subRegionSelect', 'subProvinceSelect', 'subCitymunSelect', 'subBarangaySelect',
     'editSubRegionSelect', 'editSubProvinceSelect', 'editSubCitymunSelect', 'editSubBarangaySelect',
     'sp_region_select', 'sp_province_select', 'sp_citymun_select', 'sp_barangay_select',
@@ -1297,6 +1297,77 @@ function _ensureSubGrid() {
   return grid;
 }
 
+function _buildProjectCard(p) {
+  p = p || {};
+  var name = p.name || '';
+  var col = document.createElement('div');
+  col.className = 'col-12 col-sm-6 col-xl-4 sub-card-col project-card-col';
+  col.dataset.projectId = String(p.id || '');
+  col.dataset.projectName = name;
+  var imgIds = Array.isArray(p.image_ids) ? p.image_ids : [];
+  var subCount = parseInt(p.subdivisions || 0, 10) || 0;
+  var imgHtml = imgIds.length
+    ? '<img src="/admin/subdivision-image/' + encodeURIComponent(imgIds[0]) + '" alt="' + _escAttr(name) + '" class="sub-card-img">'
+    : '<div class="sub-card-img-placeholder"><i class="fas fa-building"></i></div>';
+  var imgCountHtml = imgIds.length > 1
+    ? '<span class="prop-card-img-count"><i class="fas fa-images me-1"></i>' + imgIds.length + '</span>'
+    : '';
+  var created = p.created_at || new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+  col.innerHTML =
+    '<div class="sub-card"' +
+      ' data-project-id="' + _escAttr(String(p.id || '')) + '"' +
+      ' data-project-name="' + _escAttr(name) + '"' +
+      ' data-project-street="' + _escAttr(p.street || '') + '"' +
+      ' data-project-block="' + _escAttr(p.block || '') + '"' +
+      ' data-project-lot-no="' + _escAttr(p.lot_no || '') + '"' +
+      ' data-project-location="' + _escAttr(p.location || '') + '"' +
+      ' data-project-description="' + _escAttr(p.description || '') + '"' +
+      ' data-project-images="' + _escAttr(JSON.stringify(imgIds)) + '"' +
+      ' data-project-subs="' + subCount + '">' +
+      '<div class="sub-card-img-wrap project-card-preview-trigger" data-project-id="' + _escAttr(String(p.id || '')) + '" style="cursor:pointer;">' +
+        imgHtml +
+        imgCountHtml +
+        '<div class="sub-card-actions">' +
+          '<button type="button" class="sub-card-action-btn project-preview-btn" data-project-id="' + _escAttr(String(p.id || '')) + '" title="Preview"><i class="fas fa-eye"></i></button>' +
+          '<button type="button" class="sub-card-action-btn sub-card-action-delete sub-delete-btn" data-project-id="' + _escAttr(String(p.id || '')) + '" data-project-name="' + _escAttr(name) + '" data-has-subs="false" title="Delete Project"><i class="fas fa-trash"></i></button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="sub-card-body project-card-preview-trigger" data-project-id="' + _escAttr(String(p.id || '')) + '" style="cursor:pointer;">' +
+        '<div class="sub-card-name">' + _escHtml(name) + '</div>' +
+        '<div class="sub-card-loc"><i class="fas fa-map-marker-alt me-1"></i>' + _escHtml(p.location || '—') + '</div>' +
+        '<div class="sub-card-loc"><i class="fas fa-calendar-alt me-1"></i>' + _escHtml(created) + '</div>' +
+        '<div class="sub-card-footer">' +
+          '<span class="sub-card-badge">' + subCount + ' Subdivision' + (subCount !== 1 ? 's' : '') + '</span>' +
+          '<a href="#" class="sub-card-manage" data-goto="subdivisions">Manage <i class="fas fa-arrow-right ms-1"></i></a>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  return col;
+}
+
+function _ensureProjectGrid() {
+  var grid = document.getElementById('projectsGrid');
+  if (!grid) {
+    var emptyState = document.getElementById('projectEmptyState');
+    var wrap = document.querySelector('#page-projects .sqh-card');
+    if (emptyState) emptyState.remove();
+    if (!wrap) return null;
+    grid = document.createElement('div');
+    grid.className = 'row g-4';
+    grid.id = 'projectsGrid';
+    var noRes = document.createElement('div');
+    noRes.id = 'projNoResults';
+    noRes.className = 'text-center py-5 d-none mt-5';
+    noRes.innerHTML =
+      '<i class="fas fa-search fa-2x mb-2 d-block" style="color:var(--clr-border);"></i>' +
+      '<span class="fw-semibold d-block mb-1">No matching projects found</span>' +
+      '<span class="small text-muted">Try adjusting your search term.</span>';
+    wrap.appendChild(grid);
+    wrap.appendChild(noRes);
+  }
+  return grid;
+}
+
 var _pendingSubFiles = [];
 
 _bind('subImagesWrap', 'click', function(e) {
@@ -1450,38 +1521,64 @@ function _syncSubdivisionLocation() {
 }
 
 function _syncSubdivisionLocationFromProject() {
-  var projectSel = document.getElementById('subProject');
+  if (!document.getElementById('subRegionSelect')) return;
+  _syncSubdivisionLocation();
+}
+function initSubdivisionPsgc() {
   var regionSel = document.getElementById('subRegionSelect');
   var provinceSel = document.getElementById('subProvinceSelect');
   var citySel = document.getElementById('subCitymunSelect');
   var brgySel = document.getElementById('subBarangaySelect');
-  var display = document.getElementById('subProjectLocationDisplay');
-  if (!projectSel || !regionSel || !provinceSel || !citySel || !brgySel) return;
+  if (!regionSel || !provinceSel || !citySel || !brgySel) return;
 
-  var opt = projectSel.selectedOptions && projectSel.selectedOptions.length ? projectSel.selectedOptions[0] : null;
-  var regionCode = (opt && opt.dataset.regionCode) || '';
-  var regionName = (opt && opt.dataset.regionName) || '';
-  var provinceCode = (opt && opt.dataset.provinceCode) || '';
-  var provinceName = (opt && opt.dataset.provinceName) || '';
-  var citymunCode = (opt && opt.dataset.citymunCode) || '';
-  var citymunName = (opt && opt.dataset.citymunName) || '';
-  var barangayCode = (opt && opt.dataset.barangayCode) || '';
-  var barangayName = (opt && opt.dataset.barangayName) || '';
-  var location = (opt && opt.dataset.location) || '';
+  regionSel.addEventListener('change', function () {
+    if (!regionSel.value) {
+      _subResetSelect(provinceSel, '-- Select --');
+      _subResetSelect(citySel, '-- Select --');
+      _subResetSelect(brgySel, '-- Select --');
+      _syncSubdivisionLocation();
+      return;
+    }
+    _subGetItems('/api/psgc/provinces?region_code=' + encodeURIComponent(regionSel.value)).then(function (items) {
+      _subFillSelect(provinceSel, items, '-- Select --');
+      _subResetSelect(citySel, '-- Select --');
+      _subResetSelect(brgySel, '-- Select --');
+      _syncSubdivisionLocation();
+    });
+  });
 
-  _subFillSelect(regionSel, regionCode ? [{ code: regionCode, name: regionName || regionCode }] : [], '-- Select --', regionCode);
-  _subFillSelect(provinceSel, provinceCode ? [{ code: provinceCode, name: provinceName || provinceCode }] : [], '-- Select --', provinceCode);
-  _subFillSelect(citySel, citymunCode ? [{ code: citymunCode, name: citymunName || citymunCode }] : [], '-- Select --', citymunCode);
-  _subFillSelect(brgySel, barangayCode ? [{ code: barangayCode, name: barangayName || barangayCode }] : [], '-- Select --', barangayCode);
+  provinceSel.addEventListener('change', function () {
+    if (!provinceSel.value && !regionSel.value) return;
+    var q = provinceSel.value
+      ? ('province_code=' + encodeURIComponent(provinceSel.value))
+      : ('region_code=' + encodeURIComponent(regionSel.value));
+    _subGetItems('/api/psgc/cities?' + q).then(function (items) {
+      _subFillSelect(citySel, items, '-- Select --');
+      _subResetSelect(brgySel, '-- Select --');
+      _syncSubdivisionLocation();
+    });
+  });
 
-  if (display) display.value = location;
-  _syncSubdivisionLocation();
-}
-function initSubdivisionPsgc() {
-  var projectSel = document.getElementById('subProject');
-  if (!projectSel) return;
-  projectSel.addEventListener('change', _syncSubdivisionLocationFromProject);
-  _syncSubdivisionLocationFromProject();
+  citySel.addEventListener('change', function () {
+    if (!citySel.value) {
+      _subResetSelect(brgySel, '-- Select --');
+      _syncSubdivisionLocation();
+      return;
+    }
+    _subGetItems('/api/psgc/barangays?city_mun_code=' + encodeURIComponent(citySel.value)).then(function (items) {
+      _subFillSelect(brgySel, items, '-- Select --');
+      _syncSubdivisionLocation();
+    });
+  });
+
+  brgySel.addEventListener('change', _syncSubdivisionLocation);
+  ['subRegionSelect','subProvinceSelect','subCitymunSelect','subBarangaySelect'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('change', _syncSubdivisionLocation);
+  });
+  _subGetItems('/api/psgc/regions')
+    .then(function (items) { _subFillSelect(regionSel, items, '-- Select --'); _syncSubdivisionLocation(); })
+    .catch(function () {});
 }
 initSubdivisionPsgc();
 
@@ -1635,113 +1732,7 @@ function _preselectEditSubdivisionPsgc(codes) {
   });
 }
 
-function _syncProjectLocation() {
-  var regionSel = document.getElementById('projRegionSelect');
-  var provinceSel = document.getElementById('projProvinceSelect');
-  var citySel = document.getElementById('projCitymunSelect');
-  var brgySel = document.getElementById('projBarangaySelect');
-  function txt(sel) {
-    if (!sel || !sel.value || !sel.selectedOptions || !sel.selectedOptions.length) return '';
-    return (sel.selectedOptions[0].textContent || '').trim();
-  }
-  var regionName = txt(regionSel);
-  var provinceName = txt(provinceSel);
-  var cityName = txt(citySel);
-  var brgyName = txt(brgySel);
-
-  var loc = [brgyName, cityName, provinceName, regionName].filter(Boolean).join(', ');
-
-  var setVal = function(id, val){ var el = document.getElementById(id); if (el) el.value = val || ''; };
-  setVal('projLocation', loc);
-  setVal('projRegionCode', regionSel ? regionSel.value : '');
-  setVal('projRegionName', regionName);
-  setVal('projProvinceCode', provinceSel ? provinceSel.value : '');
-  setVal('projProvinceName', provinceName);
-  setVal('projCitymunCode', citySel ? citySel.value : '');
-  setVal('projCitymunName', cityName);
-  setVal('projBarangayCode', brgySel ? brgySel.value : '');
-  setVal('projBarangayName', brgyName);
-}
-
-function initProjectPsgc() {
-  var regionSel = document.getElementById('projRegionSelect');
-  var provinceSel = document.getElementById('projProvinceSelect');
-  var citySel = document.getElementById('projCitymunSelect');
-  var brgySel = document.getElementById('projBarangaySelect');
-  if (!regionSel || !provinceSel || !citySel || !brgySel) return;
-
-  regionSel.addEventListener('change', function () {
-    if (!regionSel.value) {
-      _subResetSelect(provinceSel, '-- Select --');
-      _subResetSelect(citySel, '-- Select --');
-      _subResetSelect(brgySel, '-- Select --');
-      _syncProjectLocation();
-      return;
-    }
-    _subGetItems('/api/psgc/provinces?region_code=' + encodeURIComponent(regionSel.value)).then(function (items) {
-      _subFillSelect(provinceSel, items, '-- Select --');
-      _subResetSelect(citySel, '-- Select --');
-      _subResetSelect(brgySel, '-- Select --');
-      _syncProjectLocation();
-    });
-  });
-
-  provinceSel.addEventListener('change', function () {
-    if (!provinceSel.value && !regionSel.value) return;
-    var q = provinceSel.value
-      ? ('province_code=' + encodeURIComponent(provinceSel.value))
-      : ('region_code=' + encodeURIComponent(regionSel.value));
-    _subGetItems('/api/psgc/cities?' + q).then(function (items) {
-      _subFillSelect(citySel, items, '-- Select --');
-      _subResetSelect(brgySel, '-- Select --');
-      _syncProjectLocation();
-    });
-  });
-
-  citySel.addEventListener('change', function () {
-    if (!citySel.value) {
-      _subResetSelect(brgySel, '-- Select --');
-      _syncProjectLocation();
-      return;
-    }
-    _subGetItems('/api/psgc/barangays?city_mun_code=' + encodeURIComponent(citySel.value)).then(function (items) {
-      _subFillSelect(brgySel, items, '-- Select --');
-      _syncProjectLocation();
-    });
-  });
-
-  brgySel.addEventListener('change', _syncProjectLocation);
-  _subGetItems('/api/psgc/regions')
-    .then(function (items) { _subFillSelect(regionSel, items, '-- Select --'); _syncProjectLocation(); })
-    .catch(function () {});
-}
-initProjectPsgc();
-
 var _activeProjectEditId = null;
-
-function _seedProjectLocationSelects(data) {
-  var regionSel = document.getElementById('projRegionSelect');
-  var provinceSel = document.getElementById('projProvinceSelect');
-  var citySel = document.getElementById('projCitymunSelect');
-  var brgySel = document.getElementById('projBarangaySelect');
-  if (!regionSel || !provinceSel || !citySel || !brgySel) return;
-
-  function seed(sel, code, name) {
-    _subResetSelect(sel, '-- Select --');
-    if (!code) return;
-    var opt = document.createElement('option');
-    opt.value = code;
-    opt.textContent = name || code;
-    sel.appendChild(opt);
-    sel.value = code;
-  }
-
-  seed(regionSel, data.region_code || '', data.region_name || '');
-  seed(provinceSel, data.province_code || '', data.province_name || '');
-  seed(citySel, data.citymun_code || '', data.citymun_name || '');
-  seed(brgySel, data.barangay_code || '', data.barangay_name || '');
-  _syncProjectLocation();
-}
 
 function _openProjectEditModal(projectId) {
   if (!projectId) return;
@@ -1764,7 +1755,6 @@ function _openProjectEditModal(projectId) {
       var descEl = document.getElementById('projDescription');
       if (nameEl) nameEl.value = data.name || '';
       if (descEl) descEl.value = data.description || '';
-      _seedProjectLocationSelects(data);
 
       var wrap = document.getElementById('projImagesWrap');
       if (wrap) {
@@ -1802,21 +1792,10 @@ _bind('addProjectModal', 'hidden.bs.modal', function() {
   var projInput = document.getElementById('projImages');
   if (projInput) projInput.value = '';
   [
-    'projectName', 'projDescription', 'projLocation',
-    'projRegionCode', 'projRegionName', 'projProvinceCode', 'projProvinceName',
-    'projCitymunCode', 'projCitymunName', 'projBarangayCode', 'projBarangayName'
+    'projectName', 'projDescription'
   ].forEach(function(id){
     var el = document.getElementById(id);
     if (el) el.value = '';
-  });
-  ['projRegionSelect','projProvinceSelect','projCitymunSelect','projBarangaySelect'].forEach(function(id){
-    var el = document.getElementById(id);
-    if (!el) return;
-    if (id === 'projRegionSelect') {
-      _subGetItems('/api/psgc/regions').then(function (items) { _subFillSelect(el, items, '-- Select --'); });
-    } else {
-      _subResetSelect(el, '-- Select --');
-    }
   });
   var errEl = document.getElementById('addProjectError');
   if (errEl) errEl.classList.add('d-none');
@@ -1841,19 +1820,10 @@ _bind('addProjectSubmitBtn', 'click', function() {
   btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Creating…';
 
   var fd = new FormData();
-  _syncProjectLocation();
   fd.append('name', name);
   fd.append('street', '');
   fd.append('block', '');
   fd.append('lot_no', '');
-  fd.append('region_code', (document.getElementById('projRegionCode').value || '').trim());
-  fd.append('region_name', (document.getElementById('projRegionName').value || '').trim());
-  fd.append('province_code', (document.getElementById('projProvinceCode').value || '').trim());
-  fd.append('province_name', (document.getElementById('projProvinceName').value || '').trim());
-  fd.append('citymun_code', (document.getElementById('projCitymunCode').value || '').trim());
-  fd.append('citymun_name', (document.getElementById('projCitymunName').value || '').trim());
-  fd.append('barangay_code', (document.getElementById('projBarangayCode').value || '').trim());
-  fd.append('barangay_name', (document.getElementById('projBarangayName').value || '').trim());
   fd.append('description', (document.getElementById('projDescription').value || '').trim());
 
   _pendingProjFiles.filter(Boolean).forEach(function(f) { fd.append('image_files', f); });
@@ -1879,8 +1849,35 @@ _bind('addProjectSubmitBtn', 'click', function() {
       }
       if (_activeProjectEditId) {
         bootstrap.Modal.getInstance(document.getElementById('addProjectModal')).hide();
+        // Patch the existing card in place (no page reload)
+        var card = document.querySelector('.sub-card[data-project-id="' + _activeProjectEditId + '"]');
+        if (card) {
+          var imgIds = res.data.image_ids || [];
+          card.dataset.projectName = res.data.name || '';
+          card.dataset.projectStreet = res.data.street || '';
+          card.dataset.projectBlock = res.data.block || '';
+          card.dataset.projectLotNo = res.data.lot_no || '';
+          card.dataset.projectLocation = res.data.location || '';
+          card.dataset.projectDescription = res.data.description || '';
+          card.dataset.projectImages = JSON.stringify(imgIds);
+          var nameEl2 = card.querySelector('.sub-card-name');
+          if (nameEl2) nameEl2.textContent = res.data.name || '';
+          var locEl2 = card.querySelector('.sub-card-body .sub-card-loc');
+          if (locEl2) locEl2.innerHTML = '<i class="fas fa-map-marker-alt me-1"></i>' + _escHtml(res.data.location || '—');
+          var wrapEl2 = card.querySelector('.sub-card-img-wrap');
+          if (wrapEl2) {
+            var actions2 = wrapEl2.querySelector('.sub-card-actions');
+            var newImgHtml = imgIds.length
+              ? '<img src="/admin/subdivision-image/' + encodeURIComponent(imgIds[0]) + '" alt="' + _escAttr(res.data.name || '') + '" class="sub-card-img">'
+              : '<div class="sub-card-img-placeholder"><i class="fas fa-building"></i></div>';
+            var newCountHtml = imgIds.length > 1
+              ? '<span class="prop-card-img-count"><i class="fas fa-images me-1"></i>' + imgIds.length + '</span>'
+              : '';
+            wrapEl2.innerHTML = newImgHtml + newCountHtml;
+            if (actions2) wrapEl2.appendChild(actions2);
+          }
+        }
         showToast('Project updated successfully.', 'success');
-        location.reload();
         return;
       }
       _addSubProjectOption(res.data.id, res.data.name, {
@@ -1894,6 +1891,20 @@ _bind('addProjectSubmitBtn', 'click', function() {
         barangayCode: res.data.barangay_code || '',
         barangayName: res.data.barangay_name || ''
       });
+      var grid = _ensureProjectGrid();
+      if (grid) {
+        grid.appendChild(_buildProjectCard({
+          id: res.data.id,
+          name: res.data.name,
+          street: res.data.street,
+          block: res.data.block,
+          lot_no: res.data.lot_no,
+          location: res.data.location,
+          description: res.data.description,
+          image_ids: res.data.image_ids || [],
+          subdivisions: 0
+        }));
+      }
       bootstrap.Modal.getInstance(document.getElementById('addProjectModal')).hide();
       showToast('Project created successfully.', 'success');
     })
@@ -1988,15 +1999,21 @@ _bind('addSubSubmitBtn', 'click', function() {
   });
 });
 
-/* ── Delete Project ──────────────────────────────────────────── */
+/* ── Delete Project / Subdivision ────────────────────────────── */
 document.addEventListener('click', function(e) {
   var btn = e.target.closest('.sub-delete-btn');
   if (!btn) return;
-  var subId   = btn.dataset.subId;
-  var subName = btn.dataset.subName;
-  var hasProps = btn.dataset.hasProps === 'true';
-  if (hasProps) {
-    alert('Cannot delete "' + subName + '" — it still has properties assigned.');
+  var projectId   = btn.dataset.projectId;
+  var projectName = btn.dataset.projectName;
+  var isProject   = Boolean(projectId);
+  var entityId    = isProject ? projectId : btn.dataset.subId;
+  var name        = isProject ? projectName : btn.dataset.subName;
+  if (!entityId || !name) return;
+  var blocked = isProject
+    ? btn.dataset.hasSubs === 'true'
+    : btn.dataset.hasProps === 'true';
+  if (blocked) {
+    showToast('Cannot delete "' + name + '" — it still has ' + (isProject ? 'subdivisions' : 'properties') + ' assigned.', 'warning');
     return;
   }
   var iconEl    = document.getElementById('toggleModalIcon');
@@ -2005,46 +2022,67 @@ document.addEventListener('click', function(e) {
   var confirmEl = document.getElementById('toggleModalConfirmBtn');
   iconEl.innerHTML = '<i class="fas fa-trash"></i>';
   iconEl.style.color = 'var(--clr-danger)';
-  titleEl.textContent = 'Delete "' + subName + '"?';
-  descEl.textContent  = 'This project will be permanently removed.';
+  titleEl.textContent = 'Delete "' + name + '"?';
+  descEl.textContent  = isProject
+    ? 'This project will be permanently removed.'
+    : 'This subdivision will be permanently removed.';
   confirmEl.className = 'btn btn-crimson px-4';
   confirmEl.innerHTML = '<i class="fas fa-trash me-1"></i> Delete';
   _togglePending.userId = null;
-  _togglePending.source = 'subdivision';
-  _togglePending._subId = subId;
+  _togglePending.source = isProject ? 'project' : 'subdivision';
+  _togglePending._entityId = entityId;
   bootstrap.Modal.getOrCreateInstance(document.getElementById('toggleAccountModal')).show();
 });
 
 _bind('toggleModalConfirmBtn', 'click', function() {
-  if (_togglePending.source !== 'subdivision') return;
-  var subId = _togglePending._subId;
-  if (!subId) return;
-  fetch('/admin/subdivision/' + subId + '/delete', { method: 'POST', headers: { 'X-CSRFToken': csrfToken() } })
+  var source = _togglePending.source;
+  if (source !== 'project' && source !== 'subdivision') return;
+  var entityId = _togglePending._entityId;
+  if (!entityId) return;
+  var url = source === 'project'
+    ? '/admin/project/' + encodeURIComponent(entityId) + '/delete'
+    : '/admin/subdivision/' + encodeURIComponent(entityId) + '/delete';
+  fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrfToken() } })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       bootstrap.Modal.getInstance(document.getElementById('toggleAccountModal')).hide();
       if (data.success) {
         // Remove card from DOM without reloading
-        var card = document.querySelector('.sub-card[data-sub-id="' + subId + '"]');
+        var attr = source === 'project' ? 'data-project-id' : 'data-sub-id';
+        var card = document.querySelector('.sub-card[' + attr + '="' + entityId + '"]');
         if (card) {
           var colEl = card.closest('.sub-card-col');
           if (colEl) colEl.remove();
         }
         // If grid is now empty, show empty state
-        var grid = document.getElementById('subdivisionsGrid');
-        if (grid && grid.querySelectorAll('.sub-card-col').length === 0) {
-          var wrap = document.querySelector('#page-subdivisions .sqh-card');
-          grid.remove();
-          var noRes = document.getElementById('subNoResults');
-          if (noRes) noRes.remove();
-          var emptyDiv = document.createElement('div');
-          emptyDiv.className = 'text-center py-5 text-muted';
-          emptyDiv.innerHTML = '<i class="fas fa-city fa-2x mb-2 d-block" style="color:var(--clr-border);"></i>No projects yet.';
-          if (wrap) wrap.appendChild(emptyDiv);
+        if (source === 'project') {
+          var pGrid = document.getElementById('projectsGrid');
+          if (pGrid && pGrid.querySelectorAll('.sub-card-col').length === 0) {
+            var pWrap = pGrid.parentElement;
+            pGrid.remove();
+            var pEmpty = document.createElement('div');
+            pEmpty.className = 'text-center py-5 text-muted';
+            pEmpty.id = 'projectEmptyState';
+            pEmpty.innerHTML = '<i class="fas fa-building fa-2x mb-2 d-block" style="color:var(--clr-border);"></i>No projects yet.';
+            if (pWrap) pWrap.appendChild(pEmpty);
+          }
+        } else {
+          var grid = document.getElementById('subdivisionsGrid');
+          if (grid && grid.querySelectorAll('.sub-card-col').length === 0) {
+            var wrap = document.querySelector('#page-subdivisions .sqh-card');
+            grid.remove();
+            var noRes = document.getElementById('subNoResults');
+            if (noRes) noRes.remove();
+            var emptyDiv = document.createElement('div');
+            emptyDiv.className = 'text-center py-5 text-muted';
+            emptyDiv.id = 'subEmptyState';
+            emptyDiv.innerHTML = '<i class="fas fa-city fa-2x mb-2 d-block" style="color:var(--clr-border);"></i>No subdivisions yet.';
+            if (wrap) wrap.appendChild(emptyDiv);
+          }
         }
-        showToast('Project deleted successfully.', 'success');
+        showToast((source === 'project' ? 'Project' : 'Subdivision') + ' deleted successfully.', 'success');
       } else {
-        showToast(data.error || 'Failed to delete project.', 'danger');
+        showToast(data.error || ('Failed to delete ' + (source === 'project' ? 'project.' : 'subdivision.')), 'danger');
       }
     })
     .catch(function() {
@@ -2761,41 +2799,23 @@ var _purchaseFormDecorated = false;
 var _purchaseEsigState = { scale: 1, x: 0, y: 0, dragging: false, startX: 0, startY: 0 };
 
 function _setEpBlockLotError(msg) {
-  var blockEl = document.getElementById('ep_block');
-  var lotEl = document.getElementById('ep_lot_no');
-  var blockErrEl = document.getElementById('ep_block_error');
-  var lotErrEl = document.getElementById('ep_lot_error');
+  var addressEl = document.getElementById('ep_full_address');
+  var addressErrEl = document.getElementById('ep_address_error');
   var hasMsg = !!String(msg || '').trim();
 
-  if (blockEl) {
-    blockEl.classList.toggle('lv-invalid', hasMsg);
-    blockEl.classList.toggle('is-invalid', hasMsg);
-  }
-  if (lotEl) {
-    lotEl.classList.toggle('lv-invalid', hasMsg);
-    lotEl.classList.toggle('is-invalid', hasMsg);
+  if (addressEl) {
+    addressEl.classList.toggle('lv-invalid', hasMsg);
+    addressEl.classList.toggle('is-invalid', hasMsg);
   }
 
-  if (hasMsg) {
-    var html = '<i class="fas fa-exclamation-circle me-1"></i>' + String(msg);
-    if (blockErrEl) {
-      blockErrEl.innerHTML = html;
-      blockErrEl.classList.add('sqh-err-visible');
+  if (addressErrEl) {
+    if (hasMsg) {
+      addressErrEl.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>' + String(msg);
+      addressErrEl.classList.add('sqh-err-visible');
+    } else {
+      addressErrEl.textContent = '';
+      addressErrEl.classList.remove('sqh-err-visible');
     }
-    if (lotErrEl) {
-      lotErrEl.innerHTML = html;
-      lotErrEl.classList.add('sqh-err-visible');
-    }
-    return;
-  }
-
-  if (blockErrEl) {
-    blockErrEl.textContent = '';
-    blockErrEl.classList.remove('sqh-err-visible');
-  }
-  if (lotErrEl) {
-    lotErrEl.textContent = '';
-    lotErrEl.classList.remove('sqh-err-visible');
   }
 }
 
@@ -3754,6 +3774,14 @@ function _openAdminEditPropertyModal(d) {
   if (!d.propStreet && !d.propBlock && !d.propLotNo && !document.getElementById('ep_site_notes')) {
     setVal('ep_street', lineOnly);
   }
+  var _addrParts = [];
+  var _addrStreet = ((document.getElementById('ep_street') || {}).value || '').trim();
+  var _addrBlock = ((document.getElementById('ep_block') || {}).value || '').trim();
+  var _addrLot = ((document.getElementById('ep_lot_no') || {}).value || '').trim();
+  if (_addrStreet) _addrParts.push(_addrStreet);
+  if (_addrBlock) _addrParts.push('Block ' + _addrBlock);
+  if (_addrLot) _addrParts.push('Lot ' + _addrLot);
+  setVal('ep_full_address', _addrParts.join(', '));
   setVal('ep_location', d.propLocation || '');
   setVal('ep_region', d.propRegion || '');
   setVal('ep_region_code', d.propRegionCode || '');
@@ -4056,12 +4084,11 @@ function initAdminEditPropertyPsgc() {
 
   brgySel.addEventListener('change', _syncAdminEditPropertyLocation);
   _bind('ep_site_notes', 'input', _syncAdminEditPropertyLocation);
-  _bind('ep_street', 'input', _syncAdminEditPropertyLocation);
-  _bind('ep_block', 'input', _syncAdminEditPropertyLocation);
-  _bind('ep_lot_no', 'input', _syncAdminEditPropertyLocation);
-  _bind('ep_street', 'input', _debouncedEpBlockLotCheck);
-  _bind('ep_block', 'input', _debouncedEpBlockLotCheck);
-  _bind('ep_lot_no', 'input', _debouncedEpBlockLotCheck);
+  _bind('ep_full_address', 'input', function () {
+    _applyFullAddressParse('ep');
+    _syncAdminEditPropertyLocation();
+    _debouncedEpBlockLotCheck();
+  });
   _bind('ep_subdivision', 'change', _debouncedEpBlockLotCheck);
 
   _subGetItems('/api/psgc/regions').then(function (items) {
@@ -4214,19 +4241,19 @@ _bind('editPropBtn', 'click', function() {
     fd.append('lot_no', lotVal);
     fd.append('prop_type', propType);
     fd.append('unit_type', unitType);
-    fd.append('price', price);
-    fd.append('promo_discount_rate', document.getElementById('ep_promo_discount_rate').value || '0');
-    fd.append('reservation_fee', document.getElementById('ep_reservation_fee').value || '0');
-    fd.append('downpayment_rate', document.getElementById('ep_downpayment_rate').value || '0');
-    fd.append('downpayment_terms_months', document.getElementById('ep_downpayment_terms_months').value || '0');
-    fd.append('loanable_percentage', document.getElementById('ep_loanable_percentage').value || '0');
-    fd.append('vat_rate', document.getElementById('ep_vat_rate').value || '0');
-    fd.append('lmf_rate', document.getElementById('ep_lmf_rate').value || '0');
+    fd.append('price', sqhCleanNumeric(price));
+    fd.append('promo_discount_rate', sqhCleanNumeric(document.getElementById('ep_promo_discount_rate').value) || '0');
+    fd.append('reservation_fee', sqhCleanNumeric(document.getElementById('ep_reservation_fee').value) || '0');
+    fd.append('downpayment_rate', sqhCleanNumeric(document.getElementById('ep_downpayment_rate').value) || '0');
+    fd.append('downpayment_terms_months', sqhCleanNumeric(document.getElementById('ep_downpayment_terms_months').value) || '0');
+    fd.append('loanable_percentage', sqhCleanNumeric(document.getElementById('ep_loanable_percentage').value) || '0');
+    fd.append('vat_rate', sqhCleanNumeric(document.getElementById('ep_vat_rate').value) || '0');
+    fd.append('lmf_rate', sqhCleanNumeric(document.getElementById('ep_lmf_rate').value) || '0');
     fd.append('bedrooms', document.getElementById('ep_bedrooms').value || '0');
     fd.append('bathrooms', document.getElementById('ep_bathrooms').value || '0');
     fd.append('storeys', document.getElementById('ep_storeys').value || '1');
-    fd.append('floor_area', document.getElementById('ep_floor_area').value || '');
-    fd.append('lot_area', document.getElementById('ep_lot_area').value || '');
+    fd.append('floor_area', sqhCleanNumeric(document.getElementById('ep_floor_area').value));
+    fd.append('lot_area', sqhCleanNumeric(document.getElementById('ep_lot_area').value));
     fd.append('subdivision_id', subdivisionVal);
     fd.append('unit_id', document.getElementById('ep_unit_id').value || '');
     fd.append('description', document.getElementById('ep_description').value || '');
@@ -4782,7 +4809,7 @@ function _doSaveCriteria() {
     dti_conditional_max:  parseFloat(cEl.value),
     confidence_threshold: parseFloat(confEl.value),
     min_tenure_months:    parseInt(tenEl.value),
-    min_gross_income:     parseFloat(incEl.value),
+    min_gross_income:     parseFloat(sqhCleanNumeric(incEl.value)),
     stability_employed:                 parseInt(document.getElementById('crit_stability_employed').value || 5),
     stability_ofw_landbased:            parseInt(document.getElementById('crit_stability_ofw_landbased').value || 4),
     stability_ofw_seafarer:             parseInt(document.getElementById('crit_stability_ofw_seafarer').value || 4),
@@ -4948,7 +4975,7 @@ document.getElementById('saveCriteriaConfirmBtn') && document.getElementById('sa
     var outErr   = document.getElementById('td_out_err');
     var ok = true;
     if (grossErr && grossEl) {
-      var gv = grossEl.value.trim();
+      var gv = sqhCleanNumeric(grossEl.value);
       if (gv === '' && !isSubmit) { grossErr.style.display = 'none'; grossEl.classList.remove('is-invalid'); }
       else if (gv === '' || parseFloat(gv) <= 0) { grossErr.textContent = 'Required — must be greater than ₱0.'; grossErr.style.display = ''; grossEl.classList.add('is-invalid'); ok = false; }
       else { grossErr.style.display = 'none'; grossEl.classList.remove('is-invalid'); }
@@ -4960,7 +4987,7 @@ document.getElementById('saveCriteriaConfirmBtn') && document.getElementById('sa
       else { ageErr.style.display = 'none'; ageEl.classList.remove('is-invalid'); }
     }
     if (loansErr && loansEl) {
-      var lv = loansEl.value.trim(); var ln = parseFloat(lv);
+      var lv = sqhCleanNumeric(loansEl.value); var ln = parseFloat(lv);
       if (lv === '' && !isSubmit) { loansErr.style.display = 'none'; loansEl.classList.remove('is-invalid'); }
       else if (lv !== '' && (isNaN(ln) || ln < 0)) { loansErr.textContent = 'Cannot be negative.'; loansErr.style.display = ''; loansEl.classList.add('is-invalid'); ok = false; }
       else { loansErr.style.display = 'none'; loansEl.classList.remove('is-invalid'); }
@@ -5021,8 +5048,8 @@ document.getElementById('saveCriteriaConfirmBtn') && document.getElementById('sa
       age:             parseInt(document.getElementById('td_age').value || 0),
       dependents:      parseInt(document.getElementById('td_dep').value || 0),
       tenure_months:   parseInt(document.getElementById('td_tenure').value || 0),
-      gross_income:    parseFloat(document.getElementById('td_gross').value || 0),
-      monthly_loans:   parseFloat(document.getElementById('td_loans').value || 0),
+      gross_income:    parseFloat(sqhCleanNumeric(document.getElementById('td_gross').value) || 0),
+      monthly_loans:   parseFloat(sqhCleanNumeric(document.getElementById('td_loans').value) || 0),
       outcome:         document.getElementById('td_outcome').value,
     };
     confirmBtn.disabled = true;
@@ -5146,8 +5173,8 @@ document.getElementById('saveCriteriaConfirmBtn') && document.getElementById('sa
     var id    = parseInt(document.getElementById('editTd_id').value);
     var btn   = this;
     var errEl = document.getElementById('editTdError');
-    var gross = parseFloat(document.getElementById('editTd_gross').value);
-    var loans = parseFloat(document.getElementById('editTd_loans').value || 0);
+    var gross = parseFloat(sqhCleanNumeric(document.getElementById('editTd_gross').value));
+    var loans = parseFloat(sqhCleanNumeric(document.getElementById('editTd_loans').value) || 0);
     if (!gross || gross <= 0) {
       errEl.textContent = 'Gross income must be greater than 0.';
       errEl.classList.remove('d-none');
@@ -6628,6 +6655,27 @@ var _adminPreviewType = null; // 'avatar' or 'banner'
   filterAdminTrips();
 }());
 
+function _splitFullAddress(raw) {
+  var s = String(raw || '').replace(/\s+/g, ' ').trim();
+  var block = '', lot = '';
+  var mBlock = s.match(/\bblock\b\s*(?:#|:|-)?\s*([A-Za-z0-9.\-]+)/i);
+  if (mBlock) { block = mBlock[1]; s = s.replace(mBlock[0], ''); }
+  var mLot = s.match(/\blot\b\s*(?:#|:|-)?\s*([A-Za-z0-9.\-]+)/i);
+  if (mLot) { lot = mLot[1]; s = s.replace(mLot[0], ''); }
+  var street = s.replace(/\s*,\s*/g, ',').replace(/,+/g, ',').replace(/^[,\s]+|[,\s]+$/g, '');
+  street = street.replace(/,(?=\S)/g, ', ').trim();
+  return { street: street, block: block, lot: lot };
+}
+
+function _applyFullAddressParse(prefix) {
+  var src = document.getElementById(prefix + '_full_address');
+  var parts = _splitFullAddress(src ? src.value : '');
+  var setVal = function (id, v) { var el = document.getElementById(id); if (el) el.value = v || ''; };
+  setVal(prefix + '_street', parts.street);
+  setVal(prefix + '_block', parts.block);
+  setVal(prefix + '_lot_no', parts.lot);
+}
+
 function _syncAdminCreatePropertyLocation() {
   var regionSel = document.getElementById('acp_region_select');
   var provinceSel = document.getElementById('acp_province_select');
@@ -6741,9 +6789,10 @@ function initAdminCreatePropertyPsgc() {
   });
 
   brgySel.addEventListener('change', _syncAdminCreatePropertyLocation);
-  _bind('acp_street', 'input', _syncAdminCreatePropertyLocation);
-  _bind('acp_block', 'input', _syncAdminCreatePropertyLocation);
-  _bind('acp_lot_no', 'input', _syncAdminCreatePropertyLocation);
+  _bind('acp_full_address', 'input', function () {
+    _applyFullAddressParse('acp');
+    _syncAdminCreatePropertyLocation();
+  });
   if (subdivisionSel) {
     subdivisionSel.addEventListener('change', _applyAcpSubdivisionMeta);
   }
@@ -6784,53 +6833,32 @@ var _pendingAcpFiles = [];
     if (fInput) fInput.value = '';
     var fnEl = document.getElementById('acp_images_filenames');
     if (fnEl) fnEl.value = '';
-    var blockEl = document.getElementById('acp_block');
-    var lotEl = document.getElementById('acp_lot_no');
-    var blockErrEl = document.getElementById('acp_block_error');
-    var lotErrEl = document.getElementById('acp_lot_error');
+    var blockEl = document.getElementById('acp_full_address');
+    var addressErrEl = document.getElementById('acp_address_error');
     if (blockEl) blockEl.classList.remove('is-invalid', 'lv-invalid');
-    if (lotEl) lotEl.classList.remove('is-invalid', 'lv-invalid');
-    if (blockErrEl) {
-      blockErrEl.textContent = '';
-      blockErrEl.classList.remove('sqh-err-visible');
-    }
-    if (lotErrEl) {
-      lotErrEl.textContent = '';
-      lotErrEl.classList.remove('sqh-err-visible');
+    if (addressErrEl) {
+      addressErrEl.textContent = '';
+      addressErrEl.classList.remove('sqh-err-visible');
     }
   }
 
   function _setAcpBlockLotError(msg) {
-    var blockEl = document.getElementById('acp_block');
-    var lotEl = document.getElementById('acp_lot_no');
-    var blockErrEl = document.getElementById('acp_block_error');
-    var lotErrEl = document.getElementById('acp_lot_error');
+    var blockEl = document.getElementById('acp_full_address');
+    var addressErrEl = document.getElementById('acp_address_error');
     var hasMsg = !!String(msg || '').trim();
     if (blockEl) {
       blockEl.classList.toggle('lv-invalid', hasMsg);
       blockEl.classList.toggle('is-invalid', hasMsg);
     }
-    if (lotEl) {
-      lotEl.classList.toggle('lv-invalid', hasMsg);
-      lotEl.classList.toggle('is-invalid', hasMsg);
-    }
     if (hasMsg) {
-      if (blockErrEl) {
-        blockErrEl.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>' + msg;
-        blockErrEl.classList.add('sqh-err-visible');
-      }
-      if (lotErrEl) {
-        lotErrEl.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>' + msg;
-        lotErrEl.classList.add('sqh-err-visible');
+      if (addressErrEl) {
+        addressErrEl.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>' + msg;
+        addressErrEl.classList.add('sqh-err-visible');
       }
     } else {
-      if (blockErrEl) {
-        blockErrEl.textContent = '';
-        blockErrEl.classList.remove('sqh-err-visible');
-      }
-      if (lotErrEl) {
-        lotErrEl.textContent = '';
-        lotErrEl.classList.remove('sqh-err-visible');
+      if (addressErrEl) {
+        addressErrEl.textContent = '';
+        addressErrEl.classList.remove('sqh-err-visible');
       }
     }
   }
@@ -6970,15 +6998,15 @@ var _pendingAcpFiles = [];
       return;
     }
     var params = {
-      price: price,
-      promo_discount_rate: val('acp_promo_discount_rate'),
-      reservation_fee: val('acp_reservation_fee'),
-      downpayment_rate: val('acp_downpayment_rate'),
-      downpayment_terms_months: val('acp_downpayment_terms_months'),
-      loanable_percentage: val('acp_loanable_percentage'),
-      vat_rate: val('acp_vat_rate'),
-      lmf_rate: val('acp_lmf_rate'),
-      annual_interest_rate: val('acp_annual_interest_rate')
+      price: sqhCleanNumeric(val('acp_price')),
+      promo_discount_rate: sqhCleanNumeric(val('acp_promo_discount_rate')),
+      reservation_fee: sqhCleanNumeric(val('acp_reservation_fee')),
+      downpayment_rate: sqhCleanNumeric(val('acp_downpayment_rate')),
+      downpayment_terms_months: sqhCleanNumeric(val('acp_downpayment_terms_months')),
+      loanable_percentage: sqhCleanNumeric(val('acp_loanable_percentage')),
+      vat_rate: sqhCleanNumeric(val('acp_vat_rate')),
+      lmf_rate: sqhCleanNumeric(val('acp_lmf_rate')),
+      annual_interest_rate: sqhCleanNumeric(val('acp_annual_interest_rate'))
     };
     var qs = Object.keys(params).filter(function (k) { return String(params[k] || '').trim() !== ''; })
       .map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); })
@@ -7186,10 +7214,12 @@ var _pendingAcpFiles = [];
     if (wrapEl) wrapEl.classList.add('d-none');
   });
 
-  _bind('acp_street', 'input', _debouncedAcpBlockLotCheck);
-  _bind('acp_block', 'input', _debouncedAcpBlockLotCheck);
-  _bind('acp_lot_no', 'input', _debouncedAcpBlockLotCheck);
   _bind('acp_subdivision', 'change', _debouncedAcpBlockLotCheck);
+  _bind('acp_full_address', 'input', function () {
+    _applyFullAddressParse('acp');
+    _syncAdminCreatePropertyLocation();
+    _debouncedAcpBlockLotCheck();
+  });
 
   btn.addEventListener('click', function () {
     var errEl = document.getElementById('adminCreatePropError');
@@ -7199,6 +7229,9 @@ var _pendingAcpFiles = [];
       var el = document.getElementById(id);
       return el ? String(el.value || '').trim() : '';
     }
+    function num(id) {
+      return sqhCleanNumeric(val(id));
+    }
 
     var name = val('acp_name');
     _syncAdminCreatePropertyLocation();
@@ -7207,7 +7240,7 @@ var _pendingAcpFiles = [];
     var block = val('acp_block');
     var lotNo = val('acp_lot_no');
     var propType = val('acp_type');
-    var price = val('acp_price');
+    var price = num('acp_price');
     var unitType = val('acp_unit_type');
 
     if (!name || !location || !propType || !unitType || !price) {
@@ -7248,18 +7281,18 @@ var _pendingAcpFiles = [];
       fd.append('prop_type', propType);
       fd.append('unit_type', unitType);
       fd.append('price', price);
-      fd.append('promo_discount_rate', val('acp_promo_discount_rate') || '0');
-      fd.append('reservation_fee', val('acp_reservation_fee') || '0');
-      fd.append('downpayment_rate', val('acp_downpayment_rate') || '0');
-      fd.append('downpayment_terms_months', val('acp_downpayment_terms_months') || '0');
-      fd.append('loanable_percentage', val('acp_loanable_percentage') || '0');
-      fd.append('vat_rate', val('acp_vat_rate') || '0');
-      fd.append('lmf_rate', val('acp_lmf_rate') || '0');
+      fd.append('promo_discount_rate', num('acp_promo_discount_rate') || '0');
+      fd.append('reservation_fee', num('acp_reservation_fee') || '0');
+      fd.append('downpayment_rate', num('acp_downpayment_rate') || '0');
+      fd.append('downpayment_terms_months', num('acp_downpayment_terms_months') || '0');
+      fd.append('loanable_percentage', num('acp_loanable_percentage') || '0');
+      fd.append('vat_rate', num('acp_vat_rate') || '0');
+      fd.append('lmf_rate', num('acp_lmf_rate') || '0');
       fd.append('bedrooms', val('acp_bedrooms') || '0');
       fd.append('bathrooms', val('acp_bathrooms') || '0');
       fd.append('storeys', val('acp_storeys') || '1');
-      fd.append('floor_area', val('acp_floor_area'));
-      fd.append('lot_area', val('acp_lot_area'));
+      fd.append('floor_area', num('acp_floor_area'));
+      fd.append('lot_area', num('acp_lot_area'));
       fd.append('subdivision_id', val('acp_subdivision'));
       fd.append('unit_id', val('acp_unit_id'));
       fd.append('status', val('acp_status') || 'available');

@@ -1892,7 +1892,7 @@
 
     function fmtMoney(v) {
       var n = Number(v || 0);
-      return n > 0 ? ('PHP ' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : '';
+      return n > 0 ? ('\u20B1' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : '';
     }
 
     var unitEl = document.getElementById('loanUnitId');

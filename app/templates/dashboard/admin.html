@@ -397,51 +397,6 @@
                 <input type="text" id="projectName" class="form-control sqh-form-control" placeholder="e.g. Camella Homes">
               </div>
             </div>
-            <div class="col-md-6">
-              <label class="sqh-form-label">Region</label>
-              <div class="input-group sqh-input-group">
-                <span class="input-group-text sqh-ig-text"><i class="fas fa-globe-asia"></i></span>
-                <select id="projRegionSelect" class="form-control sqh-form-control">
-                  <option value="">-- Select --</option>
-                </select>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <label class="sqh-form-label">Province</label>
-              <div class="input-group sqh-input-group">
-                <span class="input-group-text sqh-ig-text"><i class="fas fa-map"></i></span>
-                <select id="projProvinceSelect" class="form-control sqh-form-control">
-                  <option value="">-- Select --</option>
-                </select>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <label class="sqh-form-label">City / Municipality</label>
-              <div class="input-group sqh-input-group">
-                <span class="input-group-text sqh-ig-text"><i class="fas fa-city"></i></span>
-                <select id="projCitymunSelect" class="form-control sqh-form-control">
-                  <option value="">-- Select --</option>
-                </select>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <label class="sqh-form-label">Barangay</label>
-              <div class="input-group sqh-input-group">
-                <span class="input-group-text sqh-ig-text"><i class="fas fa-map-marker-alt"></i></span>
-                <select id="projBarangaySelect" class="form-control sqh-form-control">
-                  <option value="">-- Select --</option>
-                </select>
-              </div>
-              <input type="hidden" id="projLocation">
-              <input type="hidden" id="projRegionCode">
-              <input type="hidden" id="projRegionName">
-              <input type="hidden" id="projProvinceCode">
-              <input type="hidden" id="projProvinceName">
-              <input type="hidden" id="projCitymunCode">
-              <input type="hidden" id="projCitymunName">
-              <input type="hidden" id="projBarangayCode">
-              <input type="hidden" id="projBarangayName">
-            </div>
             <div class="col-12">
               <label class="sqh-form-label">Description</label>
               <div class="input-group sqh-input-group align-items-start">
@@ -516,7 +471,7 @@
               <label class="sqh-form-label">Region</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-globe-asia"></i></span>
-                <select id="subRegionSelect" class="form-control sqh-form-control sqh-disabled-field" disabled>
+                <select id="subRegionSelect" class="form-control sqh-form-control">
                   <option value="">-- Select --</option>
                 </select>
               </div>
@@ -525,7 +480,7 @@
               <label class="sqh-form-label">Province</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-map"></i></span>
-                <select id="subProvinceSelect" class="form-control sqh-form-control sqh-disabled-field" disabled>
+                <select id="subProvinceSelect" class="form-control sqh-form-control">
                   <option value="">-- Select --</option>
                 </select>
               </div>
@@ -534,7 +489,7 @@
               <label class="sqh-form-label">City / Municipality</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-city"></i></span>
-                <select id="subCitymunSelect" class="form-control sqh-form-control sqh-disabled-field" disabled>
+                <select id="subCitymunSelect" class="form-control sqh-form-control">
                   <option value="">-- Select --</option>
                 </select>
               </div>
@@ -543,7 +498,7 @@
               <label class="sqh-form-label">Barangay</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-map-marker-alt"></i></span>
-                <select id="subBarangaySelect" class="form-control sqh-form-control sqh-disabled-field" disabled>
+                <select id="subBarangaySelect" class="form-control sqh-form-control">
                   <option value="">-- Select --</option>
                 </select>
               </div>
@@ -898,28 +853,16 @@
               <input type="hidden" id="ep_barangay_code">
               <input type="hidden" id="ep_barangay_name">
             </div>
-            <div class="col-md-4">
-              <label class="sqh-form-label">Street</label>
+            <div class="col-12">
+              <label class="sqh-form-label">Full Address (Street / Block / Lot)</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-road"></i></span>
-                <input type="text" id="ep_street" class="form-control sqh-form-control" placeholder="e.g. Mahogany St." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other">
+                <input type="text" id="ep_full_address" class="form-control sqh-form-control" placeholder="e.g. Mahogany St., Block 5, Lot 12" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other">
               </div>
-            </div>
-            <div class="col-md-4">
-              <label class="sqh-form-label">Block</label>
-              <div class="input-group sqh-input-group">
-                <span class="input-group-text sqh-ig-text"><i class="fas fa-th-large"></i></span>
-                <input type="text" id="ep_block" class="form-control sqh-form-control" placeholder="e.g. 5" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other">
-              </div>
-              <div id="ep_block_error" class="sqh-live-error" aria-live="polite"></div>
-            </div>
-            <div class="col-md-4">
-              <label class="sqh-form-label">Lot No.</label>
-              <div class="input-group sqh-input-group">
-                <span class="input-group-text sqh-ig-text"><i class="fas fa-hashtag"></i></span>
-                <input type="text" id="ep_lot_no" class="form-control sqh-form-control" placeholder="e.g. 12" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other">
-              </div>
-              <div id="ep_lot_error" class="sqh-live-error" aria-live="polite"></div>
+              <div id="ep_address_error" class="sqh-live-error" aria-live="polite"></div>
+              <input type="hidden" id="ep_street">
+              <input type="hidden" id="ep_block">
+              <input type="hidden" id="ep_lot_no">
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Model Type</label>
@@ -967,63 +910,63 @@
               <label class="sqh-form-label">Unit ID</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-hashtag"></i></span>
-                <input type="text" id="ep_unit_id" class="form-control sqh-form-control sqh-disabled-field" disabled placeholder="Auto-generated" readonly>
+                <input type="text" id="ep_unit_id" class="form-control sqh-form-control" placeholder="e.g. TH-101" maxlength="60">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Total Selling Price (&#8369;) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-coins"></i></span>
-                <input type="number" id="ep_price" class="form-control sqh-form-control" min="0" step="0.01" placeholder="0.00">
+                <input type="text" data-commas id="ep_price" class="form-control sqh-form-control" placeholder="0.00">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Promo Discount (%) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-percent"></i></span>
-                <input type="number" id="ep_promo_discount_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="0">
+                <input type="text" data-commas id="ep_promo_discount_rate" class="form-control sqh-form-control" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Reservation Fee (&#8369;) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-receipt"></i></span>
-                <input type="number" id="ep_reservation_fee" class="form-control sqh-form-control" min="0" step="0.01" value="0">
+                <input type="text" data-commas id="ep_reservation_fee" class="form-control sqh-form-control" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Downpayment (%) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-percent"></i></span>
-                <input type="number" id="ep_downpayment_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="0">
+                <input type="text" data-commas id="ep_downpayment_rate" class="form-control sqh-form-control" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Downpayment Terms (months) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-calendar-alt"></i></span>
-                <input type="number" id="ep_downpayment_terms_months" class="form-control sqh-form-control" min="0" step="1" value="0">
+                <input type="text" data-commas id="ep_downpayment_terms_months" class="form-control sqh-form-control" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Loanable Percentage (%) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-percentage"></i></span>
-                <input type="number" id="ep_loanable_percentage" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="0">
+                <input type="text" data-commas id="ep_loanable_percentage" class="form-control sqh-form-control" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">VAT Rate (%) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-receipt"></i></span>
-                <input type="number" id="ep_vat_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="0">
+                <input type="text" data-commas id="ep_vat_rate" class="form-control sqh-form-control" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">LMF Rate (%) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-file-invoice-dollar"></i></span>
-                <input type="number" id="ep_lmf_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="0">
+                <input type="text" data-commas id="ep_lmf_rate" class="form-control sqh-form-control" value="0">
               </div>
             </div>
             <div class="col-md-6">
@@ -1051,14 +994,14 @@
               <label class="sqh-form-label">Floor Area (sqm)</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-ruler-combined"></i></span>
-                <input type="number" id="ep_floor_area" class="form-control sqh-form-control" min="0" step="0.01">
+                <input type="text" data-commas id="ep_floor_area" class="form-control sqh-form-control">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Lot Area (sqm)</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-vector-square"></i></span>
-                <input type="number" id="ep_lot_area" class="form-control sqh-form-control" min="0" step="0.01">
+                <input type="text" data-commas id="ep_lot_area" class="form-control sqh-form-control">
               </div>
             </div>
             <div class="col-md-6">
@@ -1276,7 +1219,7 @@
                   </div>
                   <div class="col-md-4"><label class="form-label">Birth Place</label><input id="pbBirthPlace" class="form-control buyer-icon-input"></div>
                   <div class="col-md-4"><label class="form-label">Tax Identification No (TIN)</label><input id="pbTin" class="form-control buyer-icon-input" inputmode="numeric" maxlength="15" placeholder="000-000-000-000"></div>
-                  <div class="col-md-4"><label class="form-label">Gross Monthly Income</label><input id="pbGrossIncome" type="number" min="0" step="0.01" class="form-control buyer-icon-input"></div>
+                  <div class="col-md-4"><label class="form-label">Gross Monthly Income</label><input id="pbGrossIncome" type="text" data-commas inputmode="decimal" class="form-control buyer-icon-input"></div>
                   <div class="col-md-4">
                     <label class="form-label">With Dependents</label>
                     <select id="pbDependentsYesNo" class="form-select buyer-icon-input">
@@ -1945,6 +1888,27 @@
               </div>
             </div>
             <div class="col-md-6">
+              <label class="sqh-form-label">Subdivision</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-building"></i></span>
+                <select id="acp_subdivision" class="form-control sqh-form-control">
+                  <option value="">— None —</option>
+                  {% for sub in all_subdivisions %}
+                  <option value="{{ sub.id }}"
+                          data-sub-location="{{ sub.location or '' }}"
+                          data-sub-region-code="{{ sub.region_code or '' }}"
+                          data-sub-region-name="{{ sub.region_name or '' }}"
+                          data-sub-province-code="{{ sub.province_code or '' }}"
+                          data-sub-province-name="{{ sub.province_name or '' }}"
+                          data-sub-citymun-code="{{ sub.citymun_code or '' }}"
+                          data-sub-citymun-name="{{ sub.citymun_name or '' }}"
+                          data-sub-barangay-code="{{ sub.barangay_code or '' }}"
+                          data-sub-barangay-name="{{ sub.barangay_name or '' }}">{{ (sub.project.name ~ ' / ') if sub.project else '' }}{{ sub.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
               <label class="sqh-form-label">Region</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-globe-asia" style="color:var(--clr-muted);"></i></span>
@@ -1990,28 +1954,16 @@
               <input type="hidden" id="acp_barangay_code">
               <input type="hidden" id="acp_barangay_name">
             </div>
-            <div class="col-md-4">
-              <label class="sqh-form-label">Street</label>
+            <div class="col-12">
+              <label class="sqh-form-label">Full Address (Street / Block / Lot)</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-road"></i></span>
-                <input type="text" id="acp_street" class="form-control sqh-form-control" placeholder="e.g. Mahogany St." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other">
+                <input type="text" id="acp_full_address" class="form-control sqh-form-control" placeholder="e.g. Mahogany St., Block 5, Lot 12" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other">
               </div>
-            </div>
-            <div class="col-md-4">
-              <label class="sqh-form-label">Block</label>
-              <div class="input-group sqh-input-group">
-                <span class="input-group-text sqh-ig-text"><i class="fas fa-th-large"></i></span>
-                <input type="text" id="acp_block" class="form-control sqh-form-control" placeholder="e.g. 5" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other">
-              </div>
-              <div id="acp_block_error" class="sqh-live-error" aria-live="polite"></div>
-            </div>
-            <div class="col-md-4">
-              <label class="sqh-form-label">Lot No.</label>
-              <div class="input-group sqh-input-group">
-                <span class="input-group-text sqh-ig-text"><i class="fas fa-hashtag"></i></span>
-                <input type="text" id="acp_lot_no" class="form-control sqh-form-control" placeholder="e.g. 12" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other">
-              </div>
-              <div id="acp_lot_error" class="sqh-live-error" aria-live="polite"></div>
+              <div id="acp_address_error" class="sqh-live-error" aria-live="polite"></div>
+              <input type="hidden" id="acp_street">
+              <input type="hidden" id="acp_block">
+              <input type="hidden" id="acp_lot_no">
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Model Type</label>
@@ -2035,31 +1987,10 @@
               </div>
             </div>
             <div class="col-md-6">
-              <label class="sqh-form-label">Subdivision</label>
-              <div class="input-group sqh-input-group">
-                <span class="input-group-text sqh-ig-text"><i class="fas fa-building"></i></span>
-                <select id="acp_subdivision" class="form-control sqh-form-control">
-                  <option value="">— None —</option>
-                  {% for sub in all_subdivisions %}
-                  <option value="{{ sub.id }}"
-                          data-sub-location="{{ sub.location or '' }}"
-                          data-sub-region-code="{{ sub.region_code or '' }}"
-                          data-sub-region-name="{{ sub.region_name or '' }}"
-                          data-sub-province-code="{{ sub.province_code or '' }}"
-                          data-sub-province-name="{{ sub.province_name or '' }}"
-                          data-sub-citymun-code="{{ sub.citymun_code or '' }}"
-                          data-sub-citymun-name="{{ sub.citymun_name or '' }}"
-                          data-sub-barangay-code="{{ sub.barangay_code or '' }}"
-                          data-sub-barangay-name="{{ sub.barangay_name or '' }}">{{ (sub.project.name ~ ' / ') if sub.project else '' }}{{ sub.name }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-            </div>
-            <div class="col-md-6">
               <label class="sqh-form-label">Unit ID</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-hashtag"></i></span>
-                <input type="text" id="acp_unit_id" class="form-control sqh-form-control sqh-disabled-field" placeholder="Auto-generated after save" readonly disabled>
+                <input type="text" id="acp_unit_id" class="form-control sqh-form-control" placeholder="e.g. TH-101" maxlength="60">
               </div>
             </div>
             <div class="col-md-6">
@@ -2080,63 +2011,63 @@
               <label class="sqh-form-label">Total Selling Price (&#8369;) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-coins"></i></span>
-                <input type="number" id="acp_price" class="form-control sqh-form-control" min="0" step="0.01" placeholder="0.00">
+                <input type="text" data-commas id="acp_price" class="form-control sqh-form-control" placeholder="0.00">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Promo Discount (%) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-percent"></i></span>
-                <input type="number" id="acp_promo_discount_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="0">
+                <input type="text" data-commas id="acp_promo_discount_rate" class="form-control sqh-form-control" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Reservation Fee (&#8369;) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-receipt"></i></span>
-                <input type="number" id="acp_reservation_fee" class="form-control sqh-form-control" min="0" step="0.01" value="0">
+                <input type="text" data-commas id="acp_reservation_fee" class="form-control sqh-form-control" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Downpayment (%) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-percent"></i></span>
-                <input type="number" id="acp_downpayment_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="0">
+                <input type="text" data-commas id="acp_downpayment_rate" class="form-control sqh-form-control" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Downpayment Terms (months) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-calendar-alt"></i></span>
-                <input type="number" id="acp_downpayment_terms_months" class="form-control sqh-form-control" min="0" step="1" value="0">
+                <input type="text" data-commas id="acp_downpayment_terms_months" class="form-control sqh-form-control" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Loanable Percentage (%) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-percentage"></i></span>
-                <input type="number" id="acp_loanable_percentage" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="0">
+                <input type="text" data-commas id="acp_loanable_percentage" class="form-control sqh-form-control" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">VAT Rate (%) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-receipt"></i></span>
-                <input type="number" id="acp_vat_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="0">
+                <input type="text" data-commas id="acp_vat_rate" class="form-control sqh-form-control" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">LMF Rate (%) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-file-invoice-dollar"></i></span>
-                <input type="number" id="acp_lmf_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="0">
+                <input type="text" data-commas id="acp_lmf_rate" class="form-control sqh-form-control" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Annual Interest Rate (%)</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-percentage"></i></span>
-                <input type="number" id="acp_annual_interest_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="{{ '%.2f'|format(default_annual_interest_rate) }}" placeholder="e.g. 8.50">
+                <input type="text" data-commas id="acp_annual_interest_rate" class="form-control sqh-form-control" value="{{ '%.2f'|format(default_annual_interest_rate) }}" placeholder="e.g. 8.50">
               </div>
               <div class="form-text text-muted small mt-1">Used for the monthly amortization estimate. Leave the system default of {{ '%.2f'|format(default_annual_interest_rate) }}% if unsure.</div>
             </div>
@@ -2165,14 +2096,14 @@
               <label class="sqh-form-label">Floor Area (sqm)</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-ruler-combined"></i></span>
-                <input type="number" id="acp_floor_area" class="form-control sqh-form-control" min="0" step="0.01" placeholder="0.00">
+                <input type="text" data-commas id="acp_floor_area" class="form-control sqh-form-control" placeholder="0.00">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Lot Area (sqm)</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-vector-square"></i></span>
-                <input type="number" id="acp_lot_area" class="form-control sqh-form-control" min="0" step="0.01" placeholder="0.00">
+                <input type="text" data-commas id="acp_lot_area" class="form-control sqh-form-control" placeholder="0.00">
               </div>
             </div>
             <div class="col-md-6">
@@ -2521,7 +2452,7 @@
                   {% for p in recent_props %}
                   <tr>
                     <td data-label="Property">{{ p.name }}</td><td data-label="Location">{{ p.location }}</td>
-                    <td data-label="Price">?{{ '{:,.0f}'.format(p.price) }}</td>
+                    <td data-label="Price">&#8369;{{ '{:,.0f}'.format(p.price) }}</td>
                     <td data-label="Status"><span class="sqh-badge badge-{{ 'qualified' if p.status == 'available' else 'not-qualified' }}">{{ p.status.title() }}</span></td>
                   </tr>
                   {% else %}
@@ -2669,7 +2600,7 @@
                 </div>
                 <div class="prop-card-footer">
                   <span class="prop-card-type {% if p.unit_type == 'pre-selling' %}prop-type-badge-pre-selling{% elif p.unit_type == 'ready-for-occupancy' %}prop-type-badge-ready-for-occupancy{% elif p.unit_type == 'resale' %}prop-type-badge-resale{% endif %}">{{ p.unit_type.replace('-',' ').title() if p.unit_type else (p.prop_type.replace('-',' ').title() if p.prop_type else '—') }}</span>
-                  <span class="prop-card-price">?{{ '{:,.0f}'.format(p.price) }}</span>
+                  <span class="prop-card-price">&#8369;{{ '{:,.0f}'.format(p.price) }}</span>
                 </div>
                 <!-- bedroom / bathroom / storey icon row -->
                 <div class="prop-card-meta">
@@ -3491,7 +3422,7 @@
                         <span class="fw-semibold {% if r.dti_ratio < 35 %}text-success{% elif r.dti_ratio <= 42 %}text-warning{% else %}text-danger{% endif %}">{{ '%.1f'|format(r.dti_ratio) }}%</span>
                       {% else %}—{% endif %}
                     </td>
-                    <td data-label="Max Loanable">?{{ '{:,.0f}'.format(r.max_loanable) if r.max_loanable else '—' }}</td>
+                    <td data-label="Max Loanable">&#8369;{{ '{:,.0f}'.format(r.max_loanable) if r.max_loanable else '—' }}</td>
                     <td class="hide-tablet" data-label="Similarity">{% if r.similarity_score is not none %}{{ '%.1f'|format(r.similarity_score * 100) }}%{% else %}—{% endif %}</td>
                     <td data-label="Result">
                       {% if r.status == 'Qualified' %}<span class="sqh-badge badge-qualified">Qualified</span>
@@ -3629,7 +3560,7 @@
                 <label class="sqh-form-label fw-semibold">Min. Monthly Gross Income (?)</label>
                 <div class="input-group sqh-input-group">
                   <span class="input-group-text sqh-ig-text"><i class="fas fa-coins"></i></span>
-                  <input type="number" id="crit_min_gross_income" class="form-control sqh-form-control" value="{{ inc_crit.value if inc_crit else '15000' }}" min="1000" step="500">
+                  <input type="text" data-commas id="crit_min_gross_income" class="form-control sqh-form-control" value="{{ inc_crit.value if inc_crit else '15000' }}">
                 </div>
               </div>
             </div>
@@ -3863,8 +3794,8 @@
                     <td class="hide-tablet" data-label="Civil">{{ (b.civil_status or '—').title() }}</td>
                     <td data-label="Age">{{ b.age or '—' }}</td>
                     <td data-label="Tenure">{{ b.tenure_months or 0 }} mo</td>
-                    <td data-label="Income">?{{ '{:,.0f}'.format(b.gross_income) if b.gross_income else '—' }}</td>
-                    <td data-label="Loans">?{{ '{:,.0f}'.format(b.monthly_loans) if b.monthly_loans else '0' }}</td>
+                    <td data-label="Income">&#8369;{{ '{:,.0f}'.format(b.gross_income) if b.gross_income else '—' }}</td>
+                    <td data-label="Loans">&#8369;{{ '{:,.0f}'.format(b.monthly_loans) if b.monthly_loans else '0' }}</td>
                     <td data-label="DTI">
                       {% if b.dti_ratio is not none %}
                         <span class="{% if b.dti_ratio < 35 %}text-success{% elif b.dti_ratio <= 42 %}text-warning{% else %}text-danger{% endif %} fw-semibold">{{ '%.1f'|format(b.dti_ratio) }}%</span>
@@ -3923,8 +3854,8 @@
                     <td data-label="Civil">{{ (b.civil_status or '—').title() }}</td>
                     <td data-label="Age">{{ b.age or '—' }}</td>
                     <td data-label="Tenure">{{ b.tenure_months or 0 }} mo</td>
-                    <td data-label="Income">?{{ '{:,.0f}'.format(b.gross_income) if b.gross_income else '—' }}</td>
-                    <td data-label="Loans">?{{ '{:,.0f}'.format(b.monthly_loans) if b.monthly_loans else '0' }}</td>
+                    <td data-label="Income">&#8369;{{ '{:,.0f}'.format(b.gross_income) if b.gross_income else '—' }}</td>
+                    <td data-label="Loans">&#8369;{{ '{:,.0f}'.format(b.monthly_loans) if b.monthly_loans else '0' }}</td>
                     <td data-label="DTI">
                       {% if b.dti_ratio is not none %}
                         <span class="{% if b.dti_ratio < 35 %}text-success{% elif b.dti_ratio <= 42 %}text-warning{% else %}text-danger{% endif %} fw-semibold">{{ '%.1f'|format(b.dti_ratio) }}%</span>
@@ -4097,7 +4028,7 @@
                   <label class="sqh-form-label">Gross Monthly Income (?)</label>
                   <div class="input-group sqh-input-group">
                     <span class="input-group-text sqh-ig-text"><i class="fas fa-money-bill-wave"></i></span>
-                    <input type="number" id="td_gross" class="form-control sqh-form-control" placeholder="e.g. 35000" min="1">
+                    <input type="text" data-commas id="td_gross" class="form-control sqh-form-control" placeholder="e.g. 35000">
                   </div>
                   <div id="td_gross_err" class="small text-danger mt-1" style="display:none;"></div>
                 </div>
@@ -4107,7 +4038,7 @@
                   <label class="sqh-form-label">Monthly Loans/Debt (?)</label>
                   <div class="input-group sqh-input-group">
                     <span class="input-group-text sqh-ig-text"><i class="fas fa-credit-card"></i></span>
-                    <input type="number" id="td_loans" class="form-control sqh-form-control" placeholder="e.g. 5000" min="0">
+                    <input type="text" data-commas id="td_loans" class="form-control sqh-form-control" placeholder="e.g. 5000">
                   </div>
                   <div id="td_loans_err" class="small text-danger mt-1" style="display:none;"></div>
                 </div>
@@ -4221,14 +4152,14 @@
                 <label class="sqh-form-label">Gross Monthly Income (?)</label>
                 <div class="input-group sqh-input-group">
                   <span class="input-group-text sqh-ig-text"><i class="fas fa-money-bill-wave"></i></span>
-                  <input type="number" id="editTd_gross" class="form-control sqh-form-control" min="1">
+                  <input type="text" data-commas id="editTd_gross" class="form-control sqh-form-control">
                 </div>
               </div>
               <div class="col-md-6">
                 <label class="sqh-form-label">Monthly Loans/Debt (?)</label>
                 <div class="input-group sqh-input-group">
                   <span class="input-group-text sqh-ig-text"><i class="fas fa-credit-card"></i></span>
-                  <input type="number" id="editTd_loans" class="form-control sqh-form-control" min="0">
+                  <input type="text" data-commas id="editTd_loans" class="form-control sqh-form-control">
                 </div>
               </div>
             </div>

@@ -3284,9 +3284,9 @@
           <label class="dash-fb-label"><i class="fas fa-filter me-1"></i>Price</label>
           <select id="boughtPriceFilter" class="form-select dash-fb-select">
             <option value="">All Prices</option>
-            <option value="lt3000000">Below ?3,000,000</option>
-            <option value="3000000-6000000">?3,000,000 - ?6,000,000</option>
-            <option value="gt6000000">Above ?6,000,000</option>
+            <option value="lt3000000">Below &#8369;3,000,000</option>
+            <option value="3000000-6000000">&#8369;3,000,000 - &#8369;6,000,000</option>
+            <option value="gt6000000">Above &#8369;6,000,000</option>
           </select>
         </div>
       </div>
@@ -3426,8 +3426,13 @@
           </div>
           <div class="cd-result-metric-divider"></div>
           <div class="cd-result-metric">
-            <div class="cd-result-metric-lbl">Similarity Score</div>
-            <div class="cd-result-metric-val">{{ '%.1f%%'|format(qual_result.similarity_score * 100) if qual_result.similarity_score is not none else '' }}</div>
+            <div class="cd-result-metric-lbl">Similarity</div>
+            <div class="cd-result-metric-val">
+              {% if qual_result.similarity_score is not none %}
+              {% set sim_score = qual_result.similarity_score %}
+              <span class="sqh-badge {{ 'badge-qualified' if sim_score >= 0.70 else ('badge-conditional' if sim_score >= 0.40 else 'badge-not-qualified') }}">{{ 'High' if sim_score >= 0.70 else ('Moderate' if sim_score >= 0.40 else 'Low') }}</span>
+              {% endif %}
+            </div>
           </div>
         </div>
       </div>
@@ -3481,7 +3486,7 @@
         <div class="table-responsive">
           <table class="table sqh-table mb-0 cp-mobile-card-table" id="assessmentHistoryTable">
             <thead>
-              <tr><th class="hide-mobile">#</th><th>Date</th><th>Assessment Type</th><th>Result</th><th>DTI</th><th>Max Loanable</th><th>Score</th></tr>
+              <tr><th class="hide-mobile">#</th><th>Date</th><th>Assessment Type</th><th>Result</th><th>DTI</th><th>Max Loanable</th><th>Similarity</th></tr>
             </thead>
             <tbody>
               {% for r in all_results %}
@@ -3500,7 +3505,7 @@
                 <td data-label="Result"><span class="sqh-badge {{ rbc }}">{{ r.status }}</span></td>
                 <td data-label="DTI">{{ '%.1f%%'|format(r.dti_ratio) if r.dti_ratio is not none else '' }}</td>
                 <td data-label="Max Loanable">&#8369;{{ '{:,.0f}'.format(r.max_loanable|float) if r.max_loanable else '' }}</td>
-                <td data-label="Score">{{ '%.1f%%'|format(r.similarity_score * 100) if r.similarity_score is not none else '' }}</td>
+                <td data-label="Similarity">{% if r.similarity_score is not none %}{% set r_sim = r.similarity_score %}<span class="sqh-badge {{ 'badge-qualified' if r_sim >= 0.70 else ('badge-conditional' if r_sim >= 0.40 else 'badge-not-qualified') }}">{{ 'High' if r_sim >= 0.70 else ('Moderate' if r_sim >= 0.40 else 'Low') }}</span>{% endif %}</td>
               </tr>
               {% endfor %}
             </tbody>

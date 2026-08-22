@@ -133,15 +133,15 @@
           </div>
         </div>
 
-        {# Similarity Score #}
+        {# Similarity #}
         <div class="col-sm-4">
           <div class="sqh-card p-3 text-center h-100" style="border-radius:12px;">
-            <div class="text-muted small mb-1"><i class="fas fa-chart-line me-1"></i>Similarity Score</div>
+            <div class="text-muted small mb-1"><i class="fas fa-chart-line me-1"></i>Similarity</div>
+            {% set sim_score = result.similarity_score if result.similarity_score is not none else 0 %}
             <div class="fw-bold fs-3" style="color:var(--clr-text);">
-              {{ "%.2f"|format(result.similarity_score if result.similarity_score else 0) }}
-              <span class="text-muted" style="font-size:.85rem;font-weight:500;">/ 1.00</span>
+              <span class="sqh-badge {{ 'badge-qualified' if sim_score >= 0.70 else ('badge-conditional' if sim_score >= 0.40 else 'badge-not-qualified') }}">{{ 'High' if sim_score >= 0.70 else ('Moderate' if sim_score >= 0.40 else 'Low') }}</span>
             </div>
-            <div class="text-muted small mt-1">Compared to approved applicants</div>
+            <div class="text-muted small mt-1">Compared to past qualification records</div>
           </div>
         </div>
 

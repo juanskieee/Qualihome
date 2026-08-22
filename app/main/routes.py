@@ -514,7 +514,7 @@ def admin_property_pricing_preview():
         "downpayment_terms_months", "loanable_percentage", "vat_rate", "lmf_rate",
         "annual_interest_rate", "required_income_ratio",
     ):
-        raw = (request.args.get(key) or "").strip()
+        raw = _clean_numeric_str(request.args.get(key))
         if raw:
             overrides[key] = raw
     try:
@@ -1943,6 +1943,9 @@ def admin_edit_project(project_id):
     if existing and existing.id != project_id:
         return jsonify({"error": "A project with this name already exists."}), 409
 
+    geo_provided = any([region_code, region_name, province_code, province_name,
+                        citymun_code, citymun_name, barangay_code, barangay_name])
+
     remove_ids = [str(x).strip() for x in request.form.getlist("remove_image_ids") if str(x).strip()]
     current_images = list(project.images or [])
     if remove_ids:
@@ -1972,15 +1975,17 @@ def admin_edit_project(project_id):
     project.street = street or None
     project.block = block or None
     project.lot_no = lot_no or None
-    project.location = location
-    project.region_code = region_code or None
-    project.region_name = region_name or None
-    project.province_code = province_code or None
-    project.province_name = province_name or None
-    project.citymun_code = citymun_code or None
-    project.citymun_name = citymun_name or None
-    project.barangay_code = barangay_code or None
-    project.barangay_name = barangay_name or None
+    if geo_provided or location:
+        project.location = location
+    if geo_provided:
+        project.region_code = region_code or None
+        project.region_name = region_name or None
+        project.province_code = province_code or None
+        project.province_name = province_name or None
+        project.citymun_code = citymun_code or None
+        project.citymun_name = citymun_name or None
+        project.barangay_code = barangay_code or None
+        project.barangay_name = barangay_name or None
     project.description = desc
     project.images = current_images
 
@@ -2275,8 +2280,8 @@ def admin_c50_add_record():
     data = request.get_json(silent=True) or {}
 
     try:
-        gross_income  = float(data.get("gross_income")  or 0)
-        monthly_loans = float(data.get("monthly_loans") or 0)
+        gross_income  = float(_clean_numeric_str(data.get("gross_income"))  or 0)
+        monthly_loans = float(_clean_numeric_str(data.get("monthly_loans")) or 0)
         tenure_months = int(data.get("tenure_months")   or 0)
         age           = int(data.get("age")             or 30)
         dependents    = int(data.get("dependents")      or 0)
@@ -2325,8 +2330,8 @@ def admin_c50_add_record_only():
         return jsonify({"error": "Forbidden"}), 403
     data = request.get_json(silent=True) or {}
     try:
-        gross_income  = float(data.get("gross_income")  or 0)
-        monthly_loans = float(data.get("monthly_loans") or 0)
+        gross_income  = float(_clean_numeric_str(data.get("gross_income"))  or 0)
+        monthly_loans = float(_clean_numeric_str(data.get("monthly_loans")) or 0)
         tenure_months = int(data.get("tenure_months")   or 0)
         age           = int(data.get("age")             or 30)
         dependents    = int(data.get("dependents")      or 0)
@@ -2367,8 +2372,8 @@ def admin_c50_edit_record(record_id):
         return jsonify({"error": "Not found"}), 404
     data = request.get_json(silent=True) or {}
     try:
-        gross_income  = float(data.get("gross_income")  or 0)
-        monthly_loans = float(data.get("monthly_loans") or 0)
+        gross_income  = float(_clean_numeric_str(data.get("gross_income"))  or 0)
+        monthly_loans = float(_clean_numeric_str(data.get("monthly_loans")) or 0)
         tenure_months = int(data.get("tenure_months")   or 0)
         age           = int(data.get("age")             or 30)
         dependents    = int(data.get("dependents")      or 0)
@@ -2885,6 +2890,11 @@ def _generate_property_unit_id(prop_id):
         return f"U{uuid.uuid4().hex[:6].upper()}"
 
 
+def _clean_numeric_str(raw) -> str:
+    """Normalize user-entered numeric text (strip thousands separators/currency marks)."""
+    return str(raw if raw is not None else "").strip().replace(",", "").replace("₱", "")
+
+
 def _compose_location_prefix(street: str, block: str, lot_no: str) -> str:
     parts = []
     street = (street or "").strip()
@@ -2923,6 +2933,16 @@ def _find_property_with_same_block_lot(street: str, block: str, lot_no: str, sub
         q = q.filter(Property.subdivision_id.is_(None))
     else:
         q = q.filter(Property.subdivision_id == int(subdivision_id))
+    if exclude_property_id:
+        q = q.filter(Property.id != int(exclude_property_id))
+    return q.first()
+
+
+def _find_property_with_unit_id(unit_id: str, exclude_property_id: int | None = None) -> Property | None:
+    unit_norm = (unit_id or "").strip().lower()
+    if not unit_norm:
+        return None
+    q = Property.query.filter(db.func.lower(db.func.trim(Property.unit_id)) == unit_norm)
     if exclude_property_id:
         q = q.filter(Property.id != int(exclude_property_id))
     return q.first()
@@ -3004,20 +3024,20 @@ def agent_submit_property():
 
     sub_id_raw = request.form.get("subdivision_id")
     try:
-        price         = float(price_str)
+        price         = float(_clean_numeric_str(price_str))
         bedrooms      = int(request.form.get("bedrooms") or 0)
         bathrooms     = int(request.form.get("bathrooms") or 0)
         storeys       = int(request.form.get("storeys") or 1)
-        floor_area_s  = (request.form.get("floor_area") or "").strip()
-        lot_area_s    = (request.form.get("lot_area") or "").strip()
+        floor_area_s  = _clean_numeric_str(request.form.get("floor_area"))
+        lot_area_s    = _clean_numeric_str(request.form.get("lot_area"))
         sub_id_s      = (sub_id_raw or "").strip()
-        promo_discount_rate = float((request.form.get("promo_discount_rate") or "0").strip() or 0)
-        reservation_fee = float((request.form.get("reservation_fee") or "0").strip() or 0)
-        downpayment_rate = float((request.form.get("downpayment_rate") or "0").strip() or 0)
-        downpayment_terms_months = int((request.form.get("downpayment_terms_months") or "0").strip() or 0)
-        loanable_percentage = float((request.form.get("loanable_percentage") or "0").strip() or 0)
-        vat_rate = float((request.form.get("vat_rate") or "0").strip() or 0)
-        lmf_rate = float((request.form.get("lmf_rate") or "0").strip() or 0)
+        promo_discount_rate = float(_clean_numeric_str(request.form.get("promo_discount_rate")) or 0)
+        reservation_fee = float(_clean_numeric_str(request.form.get("reservation_fee")) or 0)
+        downpayment_rate = float(_clean_numeric_str(request.form.get("downpayment_rate")) or 0)
+        downpayment_terms_months = int(_clean_numeric_str(request.form.get("downpayment_terms_months")) or 0)
+        loanable_percentage = float(_clean_numeric_str(request.form.get("loanable_percentage")) or 0)
+        vat_rate = float(_clean_numeric_str(request.form.get("vat_rate")) or 0)
+        lmf_rate = float(_clean_numeric_str(request.form.get("lmf_rate")) or 0)
         floor_area    = float(floor_area_s) if floor_area_s else None
         lot_area      = float(lot_area_s)   if lot_area_s   else None
         subdivision_id = int(sub_id_s) if sub_id_s else None
@@ -3057,6 +3077,16 @@ def agent_submit_property():
             "error": f"Block {block} and Lot {lot_no} are already used by {duplicate_block_lot.name or 'another model'}."
         }), 409
 
+    unit_id_raw = (request.form.get("unit_id") or "").strip()
+    if unit_id_raw:
+        existing_unit = _find_property_with_unit_id(unit_id_raw)
+        if existing_unit:
+            return jsonify({
+                "error": f"Unit ID \"{unit_id_raw}\" is already used by {existing_unit.name or 'another model'}."
+            }), 409
+    else:
+        unit_id_raw = None
+
     agent_id_raw = (request.form.get("agent_id") or "").strip()
     assigned_agent = None
     if agent_id_raw:
@@ -3086,6 +3116,7 @@ def agent_submit_property():
         barangay_name=barangay_name or None,
         prop_type=prop_type, price=price,
         unit_type=unit_type,
+        unit_id=unit_id_raw,
         promo_discount_rate=promo_discount_rate,
         reservation_fee=reservation_fee,
         downpayment_rate=downpayment_rate,
@@ -3190,20 +3221,20 @@ def agent_edit_property(prop_id):
 
     sub_id_raw = request.form.get("subdivision_id")
     try:
-        price         = float(price_str)
+        price         = float(_clean_numeric_str(price_str))
         bedrooms      = int(request.form.get("bedrooms") or 0)
         bathrooms     = int(request.form.get("bathrooms") or 0)
         storeys       = int(request.form.get("storeys") or 1)
-        floor_area_s  = (request.form.get("floor_area") or "").strip()
-        lot_area_s    = (request.form.get("lot_area") or "").strip()
+        floor_area_s  = _clean_numeric_str(request.form.get("floor_area"))
+        lot_area_s    = _clean_numeric_str(request.form.get("lot_area"))
         sub_id_s      = (sub_id_raw or "").strip()
-        promo_discount_rate = float((request.form.get("promo_discount_rate") or str(prop.promo_discount_rate or 0)).strip() or 0)
-        reservation_fee = float((request.form.get("reservation_fee") or str(prop.reservation_fee or 0)).strip() or 0)
-        downpayment_rate = float((request.form.get("downpayment_rate") or str(prop.downpayment_rate or 20)).strip() or 20)
-        downpayment_terms_months = int((request.form.get("downpayment_terms_months") or str(prop.downpayment_terms_months or 24)).strip() or 24)
-        loanable_percentage = float((request.form.get("loanable_percentage") or str(prop.loanable_percentage or 80)).strip() or 80)
-        vat_rate = float((request.form.get("vat_rate") or str(prop.vat_rate or 12)).strip() or 12)
-        lmf_rate = float((request.form.get("lmf_rate") or str(prop.lmf_rate or 10)).strip() or 10)
+        promo_discount_rate = float(_clean_numeric_str(request.form.get("promo_discount_rate") or str(prop.promo_discount_rate or 0)) or 0)
+        reservation_fee = float(_clean_numeric_str(request.form.get("reservation_fee") or str(prop.reservation_fee or 0)) or 0)
+        downpayment_rate = float(_clean_numeric_str(request.form.get("downpayment_rate") or str(prop.downpayment_rate or 20)) or 20)
+        downpayment_terms_months = int(_clean_numeric_str(request.form.get("downpayment_terms_months") or str(prop.downpayment_terms_months or 24)) or 24)
+        loanable_percentage = float(_clean_numeric_str(request.form.get("loanable_percentage") or str(prop.loanable_percentage or 80)) or 80)
+        vat_rate = float(_clean_numeric_str(request.form.get("vat_rate") or str(prop.vat_rate or 12)) or 12)
+        lmf_rate = float(_clean_numeric_str(request.form.get("lmf_rate") or str(prop.lmf_rate or 10)) or 10)
         floor_area    = float(floor_area_s) if floor_area_s else None
         lot_area      = float(lot_area_s)   if lot_area_s   else None
         subdivision_id = int(sub_id_s) if sub_id_s else None
@@ -3239,6 +3270,14 @@ def agent_edit_property(prop_id):
         return jsonify({
             "error": f"Block {block} and Lot {lot_no} are already used by {duplicate_block_lot.name or 'another model'}."
         }), 409
+
+    unit_id_raw = (request.form.get("unit_id") or "").strip()
+    if unit_id_raw and unit_id_raw.lower() != (prop.unit_id or "").strip().lower():
+        existing_unit = _find_property_with_unit_id(unit_id_raw, exclude_property_id=prop.id)
+        if existing_unit:
+            return jsonify({
+                "error": f"Unit ID \"{unit_id_raw}\" is already used by {existing_unit.name or 'another model'}."
+            }), 409
 
     prop.name         = name
     prop.street       = street or None
@@ -3283,7 +3322,9 @@ def agent_edit_property(prop_id):
             pass
 
     prop.approval_status = "approved"
-    if not prop.unit_id:
+    if unit_id_raw:
+        prop.unit_id = unit_id_raw
+    elif not prop.unit_id:
         prop.unit_id = _generate_property_unit_id(prop.id)
 
     # Handle image removals

@@ -64,7 +64,51 @@ function showToast(message, type, title) {
   }
 }
 
+// ── Numeric input formatting (thousands separators) ──────────────
+function sqhCleanNumeric(str) {
+  return String(str == null ? '' : str).replace(/[,\s\u20B1]/g, '');
+}
+
+function sqhFormatNumericValue(raw) {
+  var s = String(raw == null ? '' : raw);
+  var negative = s.charAt(0) === '-';
+  s = s.replace(/[^\d.]/g, '');
+  var firstDot = s.indexOf('.');
+  if (firstDot !== -1) {
+    s = s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, '');
+  }
+  if (!s || s === '.') return negative ? '-' : '';
+  var parts = s.split('.');
+  parts[0] = parts[0].replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return (negative ? '-' : '') + parts.join('.');
+}
+
+function sqhBindNumericFormatting(root) {
+  (root || document).querySelectorAll('input[data-commas]').forEach(function (el) {
+    if (el.dataset.sqhCommasBound) return;
+    el.dataset.sqhCommasBound = '1';
+    el.setAttribute('inputmode', 'decimal');
+    el.addEventListener('input', function () {
+      var tailLen = null;
+      if (typeof el.selectionStart === 'number') {
+        tailLen = el.value.length - el.selectionStart;
+      }
+      var formatted = sqhFormatNumericValue(el.value);
+      if (formatted !== el.value) {
+        el.value = formatted;
+        if (tailLen !== null) {
+          var pos = Math.max(0, el.value.length - tailLen);
+          try { el.setSelectionRange(pos, pos); } catch (_) {}
+        }
+      }
+    });
+  });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
+
+  // ── Comma formatting for numeric inputs ───────────────────────
+  sqhBindNumericFormatting();
 
   // ── Activate existing flash toasts ──────────────────────────────
   document.querySelectorAll('.sqh-toast').forEach(function (toast) {
