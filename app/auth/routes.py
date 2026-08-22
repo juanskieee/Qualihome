@@ -149,46 +149,13 @@ def _compute_result(gross_income: float, monthly_debt: float,
 
 
 def _get_live_meter_criteria() -> dict:
-    """Fetch qualification criteria needed by the registration live meter."""
-    defaults = {
-        "dti_qualified_max": 35.0,
-        "dti_conditional_max": 42.0,
-        "min_tenure_months": 6,
-        "stability_employed": 5,
-        "stability_ofw_landbased": 4,
-        "stability_ofw_seafarer": 4,
-        "stability_licensed_professional": 5,
-        "stability_with_financial_support": 3,
-        "stability_with_attorney_in_fact": 3,
-        "stability_with_co_borrower": 4,
-    }
+    """Fetch qualification criteria needed by the registration live meter.
 
-    def _float_val(key: str) -> float:
-        rec = SystemConfig.query.filter_by(key=key).first()
-        if not rec:
-            return float(defaults[key])
-        try:
-            return float(rec.value)
-        except (TypeError, ValueError):
-            return float(defaults[key])
-
-    def _int_val(key: str) -> int:
-        return int(round(_float_val(key)))
-
-    return {
-        "dti_qualified_max": _float_val("dti_qualified_max"),
-        "dti_conditional_max": _float_val("dti_conditional_max"),
-        "min_tenure_months": _int_val("min_tenure_months"),
-        "stability_scores": {
-            "employed": _int_val("stability_employed"),
-            "ofw-landbased": _int_val("stability_ofw_landbased"),
-            "ofw-seafarer": _int_val("stability_ofw_seafarer"),
-            "licensed-professional": _int_val("stability_licensed_professional"),
-            "with-financial-support": _int_val("stability_with_financial_support"),
-            "with-attorney-in-fact": _int_val("stability_with_attorney_in_fact"),
-            "with-co-borrower": _int_val("stability_with_co_borrower"),
-        },
-    }
+    Delegates to the canonical implementation in main.routes (which reads
+    SystemConfig through a request-scoped cache).
+    """
+    from ..main.routes import _get_live_meter_criteria as _main_get_live_meter_criteria
+    return _main_get_live_meter_criteria()
 
 
 ALLOWED_DOC_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".pdf"}

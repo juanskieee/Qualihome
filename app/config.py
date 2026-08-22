@@ -34,6 +34,10 @@ class Config:
         engine_options = {
             "pool_pre_ping": True,
             "pool_recycle": 180,
+            # Aiven is high-latency (Bangalore) — keep a warm pool so worker
+            # processes don't serialize on connection setup.
+            "pool_size": 10,
+            "max_overflow": 20,
         }
 
         # Aiven (and most managed MySQL providers) require TLS connections.

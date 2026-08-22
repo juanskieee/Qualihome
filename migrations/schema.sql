@@ -35,7 +35,8 @@ CREATE TABLE IF NOT EXISTS users (
     admin_dismissed_sale_notifs TEXT,
     created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_users_email (email),
-    INDEX idx_users_username (username)
+    INDEX idx_users_username (username),
+    INDEX idx_users_role_active_created (role, is_active, created_at)
 ) ENGINE=InnoDB;
 
 -- User profiles (clients, agents, admins)
@@ -134,6 +135,7 @@ CREATE TABLE IF NOT EXISTS qualification_results (
     factors_json     TEXT,
     created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_qr_user (user_id),
+    INDEX idx_qr_user_created (user_id, created_at),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
@@ -227,7 +229,10 @@ CREATE TABLE IF NOT EXISTS properties (
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (agent_id)       REFERENCES users(id)        ON DELETE SET NULL,
     FOREIGN KEY (subdivision_id) REFERENCES subdivisions(id) ON DELETE SET NULL,
-    INDEX idx_properties_unit_id (unit_id)
+    INDEX idx_properties_unit_id (unit_id),
+    INDEX idx_properties_agent_id (agent_id),
+    INDEX idx_properties_subdivision_id (subdivision_id),
+    INDEX idx_properties_status_approval_created (status, approval_status, created_at)
 ) ENGINE=InnoDB;
 
 -- Tripping requests
@@ -246,6 +251,9 @@ CREATE TABLE IF NOT EXISTS tripping_requests (
     created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_trip_client (client_id),
+    INDEX idx_trip_property_id (property_id),
+    INDEX idx_trip_client_created (client_id, created_at),
+    INDEX idx_trip_property_status_read (property_id, status, notification_read),
     FOREIGN KEY (client_id)   REFERENCES users(id)       ON DELETE CASCADE,
     FOREIGN KEY (property_id) REFERENCES properties(id)  ON DELETE CASCADE
 ) ENGINE=InnoDB;
@@ -260,8 +268,8 @@ CREATE TABLE IF NOT EXISTS agent_availability (
     end_time       TIME NOT NULL,
     notes          VARCHAR(255),
     created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_agent_availability_agent (agent_id),
-    INDEX idx_agent_availability_date (available_date),
+    INDEX idx_aa_agent_date (agent_id, available_date),
+    INDEX idx_aa_date (available_date),
     FOREIGN KEY (agent_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
@@ -277,6 +285,8 @@ CREATE TABLE IF NOT EXISTS property_sales (
     sold_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_ps_client   (client_id),
     INDEX idx_ps_agent    (agent_id),
+    INDEX idx_ps_agent_sold (agent_id, sold_at),
+    INDEX idx_ps_client_sold (client_id, sold_at),
     FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
     FOREIGN KEY (client_id)   REFERENCES users(id)      ON DELETE CASCADE,
     FOREIGN KEY (trip_id)     REFERENCES tripping_requests(id) ON DELETE SET NULL,
@@ -299,7 +309,8 @@ CREATE TABLE IF NOT EXISTS training_data (
     dti_ratio        FLOAT,
     outcome          ENUM('Qualified','Conditionally Qualified','Not Qualified') NOT NULL,
     notes            VARCHAR(255),
-    created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_td_notes (notes(64))
 ) ENGINE=InnoDB;
 
 -- Historical buyer records (actual sold transactions)
@@ -369,6 +380,8 @@ CREATE TABLE IF NOT EXISTS agent_notifications (
     created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_an_agent   (agent_id),
     INDEX idx_an_created (created_at),
+    INDEX idx_an_property_id (property_id),
+    INDEX idx_an_agent_type_read_created (agent_id, event_type, is_read, created_at),
     FOREIGN KEY (agent_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
@@ -389,6 +402,8 @@ CREATE TABLE IF NOT EXISTS property_pricing_detail_requests (
     UNIQUE KEY uq_pricing_detail_client_property (client_id, property_id),
     INDEX idx_pdr_client (client_id),
     INDEX idx_pdr_property (property_id),
+    INDEX idx_ppdr_reviewed_by (reviewed_by_agent_id),
+    INDEX idx_ppdr_status (status),
     FOREIGN KEY (client_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
     FOREIGN KEY (reviewed_by_agent_id) REFERENCES users(id) ON DELETE SET NULL
@@ -409,6 +424,9 @@ CREATE TABLE IF NOT EXISTS property_pricing_detail_request_history (
     INDEX idx_pdrh_request (request_id),
     INDEX idx_pdrh_client (client_id),
     INDEX idx_pdrh_property (property_id),
+    INDEX idx_pdrh_reviewed_by (reviewed_by_agent_id),
+    INDEX idx_pdrh_request_status (request_id, status),
+    INDEX idx_pdrh_property_requested (property_id, requested_at),
     FOREIGN KEY (request_id) REFERENCES property_pricing_detail_requests(id) ON DELETE SET NULL,
     FOREIGN KEY (client_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,

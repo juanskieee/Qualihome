@@ -2,10 +2,12 @@
 import uuid
 import re
 import json
+from collections import namedtuple
 from threading import Thread, Lock
-from datetime import datetime, timezone, date, time
-from flask import Blueprint, render_template, redirect, url_for, request, jsonify, current_app, send_from_directory, make_response, session
+from datetime import datetime, timezone, date, time, timedelta
+from flask import Blueprint, render_template, redirect, url_for, request, jsonify, current_app, send_from_directory, make_response, session, g
 from flask_login import login_required, current_user
+from sqlalchemy.orm import selectinload, defer
 from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 from ..models import db, Property, User, UserProfile, QualificationResult, TrippingRequest, PropertySale, Project, Subdivision, ActivityLog, AgentNotification, HistoricalBuyer, HistoricalBuyerRecord, PropertyPricingDetailRequest, PropertyPricingDetailRequestHistory, SystemConfig, AgentAvailability, log_activity
@@ -53,16 +55,23 @@ def _extract_auto_sync_sale_id(note: str | None) -> int | None:
         return None
 
 
-def _sync_single_historical_to_training(record: HistoricalBuyerRecord, extra_note: str | None = None) -> tuple[bool, str | None]:
+def _sync_single_historical_to_training(record: HistoricalBuyerRecord, extra_note: str | None = None,
+                                        synced_sale_ids: set[int] | None = None) -> tuple[bool, str | None]:
     sale_id = int(record.sale_id or 0)
     if sale_id <= 0:
         return False, "missing_sale_id"
 
-    exists = (HistoricalBuyer.query
-              .filter(HistoricalBuyer.notes.like(f"{_AUTO_SYNC_NOTE_PREFIX}{sale_id}%"))
-              .first())
-    if exists:
-        return False, "duplicate"
+    if synced_sale_ids is not None:
+        # Prefetched set supplied by the caller — O(1) duplicate check,
+        # no per-record SELECT.
+        if sale_id in synced_sale_ids:
+            return False, "duplicate"
+    else:
+        exists = (HistoricalBuyer.query
+                  .filter(HistoricalBuyer.notes.like(f"{_AUTO_SYNC_NOTE_PREFIX}{sale_id}%"))
+                  .first())
+        if exists:
+            return False, "duplicate"
 
     dti_ratio = None
     if record.dti_ratio is not None:
@@ -83,6 +92,8 @@ def _sync_single_historical_to_training(record: HistoricalBuyerRecord, extra_not
         outcome=_normalize_outcome_label(record.outcome),
         notes=_build_auto_sync_note(sale_id, extra_note or record.notes),
     ))
+    if synced_sale_ids is not None:
+        synced_sale_ids.add(sale_id)
     return True, None
 
 
@@ -308,22 +319,32 @@ def _notify_all_agents(event_type: str, message: str, property_id=None) -> None:
         ))
 
 
+def _get_config_map() -> dict:
+    """Load SystemConfig once per request, cached on flask.g."""
+    if not hasattr(g, "_sqh_config_cache"):
+        g._sqh_config_cache = {
+            r.key: r.value
+            for r in SystemConfig.query.all()
+        }
+    return g._sqh_config_cache
+
+
 def _get_system_config_float(key: str, default_value: float) -> float:
-    row = SystemConfig.query.filter_by(key=key).first()
-    if not row:
+    raw = _get_config_map().get(key)
+    if raw is None or str(raw).strip() == "":
         return float(default_value)
     try:
-        return float(row.value)
+        return float(raw)
     except (TypeError, ValueError):
         return float(default_value)
 
 
 def _get_system_config_int(key: str, default_value: int) -> int:
-    row = SystemConfig.query.filter_by(key=key).first()
-    if not row:
+    raw = _get_config_map().get(key)
+    if raw is None or str(raw).strip() == "":
         return int(default_value)
     try:
-        return int(float(row.value))
+        return int(float(raw))
     except (TypeError, ValueError):
         return int(default_value)
 
@@ -437,9 +458,11 @@ def _build_agent_availability_summary(all_agents: list[User]) -> dict[int, dict]
     return summary
 
 
-def _resolve_pricing_inputs(overrides: dict | None = None) -> dict:
+def _resolve_pricing_inputs(overrides: dict | None = None, config_map: dict | None = None) -> dict:
     """Resolve pricing inputs from optional overrides, falling back to system config defaults."""
     overrides = overrides or {}
+    if config_map is None:
+        config_map = _get_config_map()
 
     def _num(key, default):
         raw = overrides.get(key)
@@ -450,7 +473,10 @@ def _resolve_pricing_inputs(overrides: dict | None = None) -> dict:
         except (TypeError, ValueError):
             return float(default)
 
-    downpayment_terms_default = _get_system_config_int("pricing_equity_months", 24) or 24
+    try:
+        downpayment_terms_default = int(float(config_map.get("pricing_equity_months", 24))) or 24
+    except (TypeError, ValueError):
+        downpayment_terms_default = 24
     raw_terms = overrides.get("downpayment_terms_months")
     if raw_terms in (None, ""):
         downpayment_terms = int(downpayment_terms_default)
@@ -460,17 +486,26 @@ def _resolve_pricing_inputs(overrides: dict | None = None) -> dict:
         except (TypeError, ValueError):
             downpayment_terms = int(downpayment_terms_default)
 
+    def _cfg_float(key, default):
+        raw = config_map.get(key)
+        if raw is None or str(raw).strip() == "":
+            return float(default)
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            return float(default)
+
     return {
         "price": _num("price", 0.0),
         "promo_discount_rate": _num("promo_discount_rate", 0.0),
         "reservation_fee": _num("reservation_fee", 0.0),
-        "downpayment_rate": _num("downpayment_rate", _get_system_config_float("pricing_dp_rate", 20.0)),
+        "downpayment_rate": _num("downpayment_rate", _cfg_float("pricing_dp_rate", 20.0)),
         "downpayment_terms_months": downpayment_terms,
         "loanable_percentage": _num("loanable_percentage", 80.0),
         "vat_rate": _num("vat_rate", 12.0),
         "lmf_rate": _num("lmf_rate", 10.0),
-        "annual_interest_rate": _num("annual_interest_rate", _get_system_config_float("pricing_annual_interest_rate", 8.5)),
-        "required_income_ratio": _num("required_income_ratio", _get_system_config_float("pricing_required_income_ratio", 30.0)),
+        "annual_interest_rate": _num("annual_interest_rate", _cfg_float("pricing_annual_interest_rate", 8.5)),
+        "required_income_ratio": _num("required_income_ratio", _cfg_float("pricing_required_income_ratio", 30.0)),
     }
 
 
@@ -589,17 +624,25 @@ def index():
         from app.auth.routes import _dashboard_url
         return redirect(_dashboard_url(current_user.role))
 
-    # Listings data for inline section
-    city_locations = [
-        r[0] for r in db.session.query(Property.citymun_name).distinct().all()
-        if r[0]
-    ]
+    # Listings data for inline section.
+    # One catalog load feeds everything below (filter dropdowns + card list);
+    # the two former DISTINCT scans are derived in Python.
+    all_catalog = (Property.query
+                   .filter_by(status="available")
+                   .filter(db.or_(Property.approval_status == "approved",
+                                  Property.approval_status.is_(None)))
+                   .options(selectinload(Property.subdivision))
+                   .order_by(Property.created_at.desc())
+                   .all())
+
+    city_locations = sorted({(p.citymun_name or "").strip() for p in all_catalog if (p.citymun_name or "").strip()})
     legacy_locations = [
-        (r[0].split(",")[0].strip() if r[0] else "")
-        for r in db.session.query(Property.location).distinct().all()
-        if r[0]
+        loc for loc in (
+            (p.location or "").split(",")[0].strip() if p.location else ""
+            for p in all_catalog
+        ) if loc
     ]
-    all_locations = sorted(set(SUBDIVISIONS + city_locations + [loc for loc in legacy_locations if loc]))
+    all_locations = sorted(set(SUBDIVISIONS + city_locations + legacy_locations))
 
     location   = request.args.get("location", "").strip()
     max_budget = request.args.get("max_budget", "").strip()
@@ -607,41 +650,40 @@ def index():
     storeys    = request.args.get("storeys", "").strip()
     bathrooms  = request.args.get("bathrooms", "").strip()
 
-    q = Property.query.filter_by(status="available").filter(
-        db.or_(Property.approval_status == "approved", Property.approval_status.is_(None))
-    )
-    if location:
-        q = q.filter(
-            db.or_(
-                Property.citymun_name.ilike(f"%{location}%"),
-                Property.location.ilike(f"%{location}%"),
-            )
-        )
-    if max_budget:
+    def _within_budget(p):
+        if not max_budget:
+            return True
         try:
-            q = q.filter(Property.price <= float(max_budget))
+            return p.price is not None and float(p.price) <= float(max_budget)
         except ValueError:
-            pass
-    if bedrooms:
-        try:
-            val = int(bedrooms)
-            q = q.filter(Property.bedrooms >= val) if val >= 5 else q.filter(Property.bedrooms == val)
-        except ValueError:
-            pass
-    if storeys:
-        try:
-            val = int(storeys)
-            q = q.filter(Property.storeys >= val) if val >= 3 else q.filter(Property.storeys == val)
-        except ValueError:
-            pass
-    if bathrooms:
-        try:
-            val = int(bathrooms)
-            q = q.filter(Property.bathrooms >= val) if val >= 4 else q.filter(Property.bathrooms == val)
-        except ValueError:
-            pass
+            return True
 
-    properties = q.order_by(Property.created_at.desc()).all()
+    def _int_filter(p_value, raw, special):
+        if not raw:
+            return True
+        try:
+            val = int(raw)
+        except ValueError:
+            return True
+        if val >= special:
+            return p_value is not None and int(p_value) >= val
+        return p_value is not None and int(p_value) == val
+
+    def _loc_match(p):
+        if not location:
+            return True
+        needle = location.lower()
+        return ((p.citymun_name and needle in p.citymun_name.lower())
+                or (p.location and needle in p.location.lower()))
+
+    properties = [
+        p for p in all_catalog
+        if _loc_match(p)
+        and _within_budget(p)
+        and _int_filter(p.bedrooms, bedrooms, 5)
+        and _int_filter(p.storeys, storeys, 3)
+        and _int_filter(p.bathrooms, bathrooms, 4)
+    ]
     filters = dict(
         location=location, max_budget=max_budget,
         bedrooms=bedrooms, storeys=storeys, bathrooms=bathrooms,
@@ -730,6 +772,16 @@ def client_dashboard():
                  .filter_by(status="available")
                  .filter(db.or_(Property.approval_status == "approved",
                                 Property.approval_status.is_(None)))
+                 .options(
+                     selectinload(Property.agent).selectinload(User.profile).options(
+                         defer(UserProfile.avatar_data),
+                         defer(UserProfile.banner_data),
+                         defer(UserProfile.valid_id_data),
+                         defer(UserProfile.income_proof_data),
+                         defer(UserProfile.esignature_data),
+                     ),
+                     selectinload(Property.subdivision),
+                 )
                  .order_by(Property.created_at.desc())
                  .all())
 
@@ -750,21 +802,27 @@ def client_dashboard():
     # clients) which is falsy, so we check > 0 explicitly rather than relying on
     # bool(max_loanable). Fall back to all available props when the strict filters
     # return nothing so the Recommended section is never silently empty.
+    # Filtered in Python from all_props (already loaded) to avoid a second
+    # full-catalog query.
     matched_props = []
     if qual_result:
-        q = (Property.query
-             .filter_by(status="available")
-             .filter(db.or_(Property.approval_status == "approved",
-                            Property.approval_status.is_(None))))
-        if qual_result.max_loanable and float(qual_result.max_loanable) > 0:
-            q = q.filter(Property.price <= float(qual_result.max_loanable))
-        if selected_model_name:
-            q = q.filter(Property.name == selected_model_name)
-        if profile and profile.budget_min and float(profile.budget_min) > 0:
-            q = q.filter(Property.price >= float(profile.budget_min))
-        if profile and profile.budget_max and float(profile.budget_max) > 0:
-            q = q.filter(Property.price <= float(profile.budget_max))
-        matched_props = q.order_by(Property.price.asc()).all()
+        max_loanable_val = float(qual_result.max_loanable) if (qual_result.max_loanable and float(qual_result.max_loanable) > 0) else None
+        budget_min_val = float(profile.budget_min) if (profile and profile.budget_min and float(profile.budget_min) > 0) else None
+        budget_max_val = float(profile.budget_max) if (profile and profile.budget_max and float(profile.budget_max) > 0) else None
+
+        def _matches(p):
+            if max_loanable_val is not None and not (p.price is not None and float(p.price) <= max_loanable_val):
+                return False
+            if selected_model_name and (p.name or "") != selected_model_name:
+                return False
+            if budget_min_val is not None and not (p.price is not None and float(p.price) >= budget_min_val):
+                return False
+            if budget_max_val is not None and not (p.price is not None and float(p.price) <= budget_max_val):
+                return False
+            return True
+
+        matched_props = [p for p in all_props if _matches(p)]
+        matched_props.sort(key=lambda p: (p.price if p.price is not None else 0))
         if not matched_props:
             matched_props = all_props  # preferences/budget too restrictive — show all
 
@@ -818,14 +876,20 @@ def client_dashboard():
     if trip_backfilled:
         db.session.commit()
 
-    sold_trip_ids = {
-        int(s.trip_id) for s in PropertySale.query.filter_by(client_id=current_user.id).all()
-        if s.trip_id
-    }
+    # Single load — sold_trip_ids derived from the same rows (removes a dup query).
     bought_sales = (PropertySale.query
                     .filter_by(client_id=current_user.id)
+                    .options(
+                        selectinload(PropertySale.property_item).selectinload(Property.subdivision),
+                        selectinload(PropertySale.property_item).selectinload(Property.agent),
+                        selectinload(PropertySale.trip_item),
+                    )
                     .order_by(PropertySale.sold_at.desc())
                     .all())
+    sold_trip_ids = {
+        int(s.trip_id) for s in bought_sales
+        if s.trip_id
+    }
 
     # Only pending visit requests should block creating a new request in the UI.
     requested_prop_ids = sorted({
@@ -960,8 +1024,16 @@ def agent_dashboard():
     if current_user.role not in ("agent", "admin"):
         return redirect(url_for("main.index"))
 
-    my_props = (Property.query
-                .filter(db.or_(Property.approval_status == "approved", Property.approval_status.is_(None)))
+    my_props_q = (Property.query
+                  .filter(db.or_(Property.approval_status == "approved", Property.approval_status.is_(None))))
+    # Agents only ever see their own listings here; admins keep the full view.
+    if current_user.role == "agent":
+        my_props_q = my_props_q.filter(Property.agent_id == current_user.id)
+    my_props = (my_props_q
+                .options(
+                    selectinload(Property.sale_record).selectinload(PropertySale.client),
+                    selectinload(Property.subdivision),
+                )
                 .order_by(Property.created_at.desc())
                 .all())
     prop_ids = [p.id for p in my_props]
@@ -971,6 +1043,10 @@ def agent_dashboard():
                     .join(Property, Property.id == TrippingRequest.property_id)
                     .filter(Property.agent_id == current_user.id,
                     TrippingRequest.status.in_(["pending", "approved", "visited", "rejected"]))
+                    .options(
+                        selectinload(TrippingRequest.client),
+                        selectinload(TrippingRequest.property_item),
+                    )
                     .order_by(TrippingRequest.created_at.desc())
                     .all())
     else:
@@ -1242,27 +1318,33 @@ def admin_dashboard():
     if current_user.role != "admin":
         return redirect(url_for("main.index"))
 
-    # Overview stats
-    total_users    = User.query.filter(User.role != "admin").count()
-    total_clients  = User.query.filter_by(role="client").count()
-    total_agents   = User.query.filter_by(role="agent").count()
-    total_props    = Property.query.count()
+    # Full lists for sub-pages (loaded once, reused for stats/recents below)
+    all_properties = (Property.query
+                      .options(
+                          selectinload(Property.subdivision).selectinload(Subdivision.project),
+                          selectinload(Property.sale_record).selectinload(PropertySale.client),
+                          selectinload(Property.agent),
+                      )
+                      .order_by(Property.created_at.desc())
+                      .all())
+    all_clients    = User.query.filter_by(role="client").order_by(User.created_at.desc()).all()
+    all_agents     = User.query.filter_by(role="agent").order_by(User.created_at.desc()).all()
+
+    # Overview stats — derived from the lists above instead of extra COUNT queries
+    total_users    = len(all_clients) + len(all_agents)
+    total_clients  = len(all_clients)
+    total_agents   = len(all_agents)
+    total_props    = len(all_properties)
     total_sold     = PropertySale.query.count()
+    today_start = datetime.combine(date.today(), time.min)
+    today_end = today_start + timedelta(days=1)
     assessments_today = QualificationResult.query.filter(
-        db.func.date(QualificationResult.created_at) == db.func.current_date()
+        QualificationResult.created_at >= today_start,
+        QualificationResult.created_at < today_end,
     ).count()
-    qual_counts = dict(
-        qualified    = QualificationResult.query.filter_by(status="Qualified").count(),
-        conditional  = QualificationResult.query.filter_by(status="Conditionally Qualified").count(),
-        not_qualified= QualificationResult.query.filter_by(status="Not Qualified").count(),
-    )
     recent_users = User.query.filter(User.role != "admin").order_by(User.created_at.desc()).limit(5).all()
     recent_props = Property.query.order_by(Property.created_at.desc()).limit(5).all()
 
-    # Full lists for sub-pages
-    all_properties = Property.query.order_by(Property.created_at.desc()).all()
-    all_clients    = User.query.filter_by(role="client").order_by(User.created_at.desc()).all()
-    all_agents     = User.query.filter_by(role="agent").order_by(User.created_at.desc()).all()
     agent_availability_summary = _build_agent_availability_summary(all_agents)
     def _normalize_trip_status(value):
         s = (value or "").strip().lower()
@@ -1271,6 +1353,11 @@ def admin_dashboard():
         return "pending"
 
     all_trip_requests = (TrippingRequest.query
+                         .options(
+                             selectinload(TrippingRequest.client),
+                             selectinload(TrippingRequest.property_item).selectinload(Property.agent),
+                             selectinload(TrippingRequest.sale_record),
+                         )
                          .order_by(TrippingRequest.created_at.desc())
                          .all())
     pending_trip_requests = [t for t in all_trip_requests if _normalize_trip_status(t.status) == "pending"]
@@ -1301,7 +1388,19 @@ def admin_dashboard():
             if int(ag.id) in available_ids and ag.is_active:
                 options.append({"id": ag.id, "name": ag.full_name})
         available_agents_by_trip[int(trip.id)] = options
-    all_results    = QualificationResult.query.order_by(QualificationResult.created_at.desc()).all()
+    all_results    = (QualificationResult.query
+                      .options(selectinload(QualificationResult.user))
+                      .order_by(QualificationResult.created_at.desc())
+                      .all())
+    # Derive per-status counts and the recents list from all_results
+    # (identical data — removes 4 extra queries).
+    qual_counts = dict(
+        qualified    = sum(1 for r in all_results if r.status == "Qualified"),
+        conditional  = sum(1 for r in all_results if r.status == "Conditionally Qualified"),
+        not_qualified= sum(1 for r in all_results if r.status == "Not Qualified"),
+    )
+    recent_assessments = all_results[:5]
+    recent_trip_requests = all_trip_requests[:20]
     all_subdivisions = Subdivision.query.order_by(Subdivision.name).all()
     def _norm_name(value: str) -> str:
         return re.sub(r"[^a-z0-9]+", "", (value or "").strip().lower())
@@ -1312,8 +1411,17 @@ def admin_dashboard():
     all_historical   = HistoricalBuyer.query.order_by(HistoricalBuyer.id.desc()).all()
     all_historical_records = HistoricalBuyerRecord.query.order_by(HistoricalBuyerRecord.created_at.desc()).all()
     model_meta       = c50_engine.get_meta()
-    criteria_config  = SystemConfig.query.all()
-    settings_dict    = {c.key: c.value for c in criteria_config}
+    # Request-cached SystemConfig — synthesized into row-like objects so the
+    # template's selectattr('key', …) filtering keeps working without a query.
+    config_map = _get_config_map()
+    ConfigRow = namedtuple("ConfigRow", ["key", "value"])
+    criteria_config  = [ConfigRow(k, v) for k, v in sorted(config_map.items())]
+    settings_dict    = dict(config_map)
+    sub_counts = dict(
+        db.session.query(Subdivision.project_id, db.func.count(Subdivision.id))
+        .group_by(Subdivision.project_id)
+        .all()
+    )
     try:
         activity_logs = ActivityLog.query.order_by(ActivityLog.created_at.desc()).limit(1000).all()
     except Exception:
@@ -1324,12 +1432,7 @@ def admin_dashboard():
     dismissed_asmnt_ids = set(current_user.get_admin_dismissed_assessment_notifs())
     dismissed_sale_ids  = set(current_user.get_admin_dismissed_sale_notifs())
     pending_props       = Property.query.filter_by(approval_status="pending").order_by(Property.created_at.desc()).all()
-    recent_assessments  = QualificationResult.query.order_by(QualificationResult.created_at.desc()).limit(5).all()
     recent_sales        = PropertySale.query.order_by(PropertySale.sold_at.desc()).limit(8).all()
-    recent_trip_requests = (TrippingRequest.query
-                            .order_by(TrippingRequest.created_at.desc())
-                            .limit(20)
-                            .all())
     recent_buyer_form_submissions = (AgentNotification.query
                                      .filter_by(agent_id=current_user.id, event_type="buyer_form_submit")
                                      .order_by(AgentNotification.created_at.desc())
@@ -1422,8 +1525,9 @@ def admin_dashboard():
                            dismissed_asmnt_ids=dismissed_asmnt_ids,
                            dismissed_sale_ids=dismissed_sale_ids,
                            notif_count=notif_count,
-                           all_projects=all_projects,
-                           all_subdivisions=all_subdivisions,
+                            all_projects=all_projects,
+                            all_subdivisions=all_subdivisions,
+                            sub_counts=sub_counts,
                            all_historical=all_historical,
                            all_historical_records=all_historical_records,
                            model_meta=model_meta,
@@ -1574,6 +1678,9 @@ def admin_user_profile(user_id):
         }
         client_sales = (PropertySale.query
                         .filter_by(client_id=user.id)
+                        .options(
+                            selectinload(PropertySale.property_item).selectinload(Property.subdivision),
+                        )
                         .order_by(PropertySale.sold_at.desc())
                         .all())
         data["bought_properties"] = [
@@ -1599,6 +1706,10 @@ def admin_user_profile(user_id):
         )
         agent_sales = (PropertySale.query
                        .filter_by(agent_id=user.id)
+                       .options(
+                           selectinload(PropertySale.property_item),
+                           selectinload(PropertySale.client),
+                       )
                        .order_by(PropertySale.sold_at.desc())
                        .all())
         data["sold_properties"] = [
@@ -2508,9 +2619,11 @@ def admin_c50_sync_historical():
     inserted = 0
     duplicates = 0
     missing_sale_ids = 0
+    # One prefetch for the whole batch — replaces the per-record LIKE query.
+    synced_sale_ids = _get_synced_sale_ids_from_training()
 
     for rec in records:
-        created, reason = _sync_single_historical_to_training(rec)
+        created, reason = _sync_single_historical_to_training(rec, synced_sale_ids=synced_sale_ids)
         if created:
             inserted += 1
         elif reason == "duplicate":
@@ -3462,6 +3575,7 @@ def agent_property_full_detail_requests(prop_id):
 
     rows = (PropertyPricingDetailRequestHistory.query
             .filter_by(property_id=prop_id)
+            .options(selectinload(PropertyPricingDetailRequestHistory.client))
             .order_by(PropertyPricingDetailRequestHistory.requested_at.desc(),
                       PropertyPricingDetailRequestHistory.id.desc())
             .all())
@@ -3836,6 +3950,17 @@ def admin_property_purchase_list(prop_id):
 
     trips = (TrippingRequest.query
              .filter(TrippingRequest.property_id == prop_id)
+             .options(
+                 selectinload(TrippingRequest.client).selectinload(User.profile).options(
+                     defer(UserProfile.avatar_data),
+                     defer(UserProfile.banner_data),
+                     defer(UserProfile.valid_id_data),
+                     defer(UserProfile.income_proof_data),
+                     defer(UserProfile.esignature_data),
+                 ),
+                 selectinload(TrippingRequest.property_item).selectinload(Property.agent),
+                 selectinload(TrippingRequest.sale_record),
+             )
              .order_by(TrippingRequest.created_at.desc())
              .all())
 

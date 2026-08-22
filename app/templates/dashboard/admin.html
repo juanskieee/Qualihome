@@ -3153,7 +3153,7 @@
                data-project-location="{{ pr.location or '' }}"
                data-project-description="{{ pr.description or '' }}"
                data-project-images='{{ pr.images | tojson }}'
-               data-project-subs="{{ pr.subdivisions|length }}">
+               data-project-subs="{{ sub_counts.get(pr.id, 0) }}">
             <div class="sub-card"
                  data-project-id="{{ pr.id }}"
                  data-project-name="{{ pr.name }}"
@@ -3163,7 +3163,7 @@
                  data-project-location="{{ pr.location or '' }}"
                  data-project-description="{{ pr.description or '' }}"
                  data-project-images='{{ pr.images | tojson }}'
-                 data-project-subs="{{ pr.subdivisions|length }}">
+                 data-project-subs="{{ sub_counts.get(pr.id, 0) }}">
               <div class="sub-card-img-wrap project-card-preview-trigger" data-project-id="{{ pr.id }}" style="cursor:pointer;">
                 {% if pr.images %}
                 <img src="{{ pr.images[0] | img_src }}" alt="{{ pr.name }}" class="sub-card-img">
@@ -3193,7 +3193,7 @@
                 <div class="sub-card-loc"><i class="fas fa-map-marker-alt me-1"></i>{{ pr.location or '—' }}</div>
                 <div class="sub-card-loc"><i class="fas fa-calendar-alt me-1"></i>{{ pr.created_at.strftime('%b %d, %Y') if pr.created_at else '—' }}</div>
                 <div class="sub-card-footer">
-                  <span class="sub-card-badge">{{ pr.subdivisions|length }} Subdivision{{ 's' if pr.subdivisions|length != 1 else '' }}</span>
+                  <span class="sub-card-badge">{{ sub_counts.get(pr.id, 0) }} Subdivision{{ 's' if sub_counts.get(pr.id, 0) != 1 else '' }}</span>
                   <a href="#" class="sub-card-manage" data-goto="subdivisions">Manage <i class="fas fa-arrow-right ms-1"></i></a>
                 </div>
               </div>
